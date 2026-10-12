@@ -260,9 +260,7 @@ async function saveQuizResultOnline(result) {
         function needsTeacherResetKey(nis) { return `pkwu_quiz_needs_teacher_reset_${String(nis).trim()}`; }
         function resetAuthorizedKey(nis) { return `pkwu_quiz_reset_authorized_${String(nis).trim()}`; }
 
-        // PENJAGA MULTI-TAB & KELUAR HALAMAN OTOMATIS
         function setupSecurityGuards() {
-            // 1. BroadcastChannel untuk mendeteksi tab baru yang dibuka secara instan
             if ('BroadcastChannel' in window) {
                 tabGuardChannel = new BroadcastChannel('pkwu_quiz_guard_channel');
                 tabGuardChannel.onmessage = (event) => {
@@ -272,14 +270,12 @@ async function saveQuizResultOnline(result) {
                 };
             }
 
-            // 2. Deteksi saat tab disembunyikan (pindah tab / minimize browser / pindah aplikasi)
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'hidden' && currentUser) {
                     forceAutoLogout("Sesi diakhiri otomatis karena Anda keluar dari halaman ulangan atau membuka tab lain.");
                 }
             });
 
-            // 3. Deteksi saat halaman ditutup atau ditinggalkan
             window.addEventListener('pagehide', () => {
                 if (currentUser) {
                     forceAutoLogout("Sesi ditutup.");
@@ -291,7 +287,6 @@ async function saveQuizResultOnline(result) {
             if (!currentUser) return;
             const nis = String(currentUser.nis);
             
-            // Tandai agar siswa wajib minta reset ke guru akibat pelanggaran/keluar web
             try {
                 localStorage.setItem(needsTeacherResetKey(nis), JSON.stringify({ reason, at: new Date().toISOString() }));
                 localStorage.removeItem(activeSessionKey());
@@ -304,7 +299,6 @@ async function saveQuizResultOnline(result) {
             currentUser = null;
             stopQuizTimer();
             
-            // Tampilkan kembali modal login dengan pesan peringatan
             const loginModal = document.getElementById('login-modal');
             const errorBox = document.getElementById('login-error');
             const userBadge = document.getElementById('user-badge');
@@ -496,19 +490,49 @@ async function saveQuizResultOnline(result) {
             });
         }
 
+        // FUNGSI RESET YANG DIPERBAIKI (MEMBERSIHKAN LOKAL DAN ONLINE SUPABASE)
         async function resetStudentAttempt(nis) {
-            if (!confirm(`Reset akses untuk NISN ${nis}?`)) return;
+            const cleanNis = String(nis || "").trim();
+            const student = studentDatabase.find(s => String(s.nis).trim() === cleanNis);
+            
+            if (!student) { 
+                alert('Data siswa dengan NISN tersebut tidak ditemukan.'); 
+                return; 
+            }
+            
+            if (!confirm(`Reset akses ulangan untuk ${student.nama} (${cleanNis})? Siswa akan diizinkan login kembali.`)) {
+                return;
+            }
+            
             try {
-                localStorage.removeItem(`pkwu_quiz_completed_${nis}`);
-                localStorage.removeItem(needsTeacherResetKey(nis));
-                localStorage.setItem(resetAuthorizedKey(nis), '1');
-                if (supabaseClient) {
-                    await supabaseClient.from("hasil_kuis_bk").delete().eq("nis", String(nis).trim());
+                // 1. Bersihkan seluruh penanda sesi & penguncian lokal
+                localStorage.removeItem(`pkwu_quiz_completed_${cleanNis}`);
+                localStorage.removeItem(needsTeacherResetKey(cleanNis));
+                localStorage.removeItem(`pkwu_quiz_tab_violation_${cleanNis}`);
+                localStorage.removeItem(`pkwu_quiz_deadline_${cleanNis}`);
+                localStorage.setItem(resetAuthorizedKey(cleanNis), '1');
+                
+                const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
+                if (active && String(active.nis).trim() === cleanNis) {
+                    localStorage.removeItem(activeSessionKey());
                 }
-                alert('Akses berhasil direset.');
+
+                // 2. Hapus data nilai secara online di Supabase
+                if (supabaseClient) {
+                    const { error } = await supabaseClient
+                        .from("hasil_kuis_bk")
+                        .delete()
+                        .eq("nis", cleanNis);
+
+                    if (error) {
+                        console.warn("Gagal menghapus data online di Supabase:", error.message);
+                    }
+                }
+
+                alert(`Akses ulangan ${student.nama} berhasil direset! Siswa dapat login kembali.`);
                 loadTeacherDashboard();
             } catch (e) {
-                alert('Gagal mereset.');
+                alert('Gagal mereset: ' + (e.message || e));
             }
         }
 
