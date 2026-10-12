@@ -40,9 +40,6 @@ async function saveQuizResultOnline(result) {
         waktu: result.waktu || new Date().toISOString()
     };
 
-    // Jangan bergantung pada constraint UNIQUE nis untuk penyimpanan.
-    // Kita cek dulu apakah NIS sudah ada, lalu UPDATE; jika belum ada, INSERT.
-    // Ini juga membuat pesan error lebih jelas ketika RLS/kolom database bermasalah.
     try {
         const { data: existing, error: findError } = await supabaseClient
             .from("hasil_kuis_bk")
@@ -544,13 +541,10 @@ async function saveQuizResultOnline(result) {
         function handleBrowserLeaveAttempt(reason = 'keluar_browser') {
             if (!currentUser || leaveGuardTriggered) return;
             const questionBox = document.getElementById('quiz-question-box');
-            // Hanya terapkan selama siswa benar-benar berada dalam sesi pengerjaan.
             if (questionBox && questionBox.classList.contains('hidden')) return;
             leaveGuardTriggered = true;
             const nis = String(currentUser.nis);
             const name = currentUser.nama;
-            // Simpan nilai sementara secara lokal sebelum halaman ditinggalkan.
-            // Penyimpanan online tidak dapat dijamin oleh browser saat halaman ditutup.
             try { saveQuizResultForTeacher(); } catch (e) { console.warn('Gagal menyimpan nilai sementara:', e); }
             markAttemptCompleted(nis, reason);
             requireTeacherReset(nis, reason);
@@ -565,12 +559,9 @@ async function saveQuizResultOnline(result) {
         }
 
         function setupBrowserLeaveGuard() {
-            // Saat siswa berpindah tab/aplikasi atau meminimalkan browser, kunci sesi.
-            // Ini tidak membuktikan niat mencari jawaban; hanya mendeteksi halaman tidak aktif.
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'hidden') handleBrowserLeaveAttempt('halaman_tidak_aktif');
             });
-            // Menangani penutupan tab, navigasi keluar, atau refresh jika event didukung browser.
             window.addEventListener('pagehide', () => handleBrowserLeaveAttempt('keluar_browser'));
         }
 
@@ -600,7 +591,6 @@ async function saveQuizResultOnline(result) {
                     }
                 };
             }
-            // Tab baru dengan sessionStorage berbeda langsung memicu penguncian.
             try {
                 const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
                 if (active && active.nis && active.tabId !== activeTabId) {
@@ -639,7 +629,6 @@ async function saveQuizResultOnline(result) {
 
         async function hasCompletedAttempt(nis) {
             const normalizedNis = String(nis).trim();
-            // Reset yang diberikan guru mengizinkan percobaan baru meskipun ada hasil lama di database.
             try {
                 if (localStorage.getItem(resetAuthorizedKey(normalizedNis)) === '1') return false;
                 if (localStorage.getItem(needsTeacherResetKey(normalizedNis))) return true;
@@ -651,8 +640,6 @@ async function saveQuizResultOnline(result) {
                 }
             } catch (e) {}
 
-            // Pemeriksaan online membantu mencegah siswa mengulang dari perangkat/browser lain.
-            // Ini bergantung pada izin SELECT/RLS Supabase untuk tabel hasil_kuis_bk.
             if (supabaseClient) {
                 try {
                     const { data, error } = await supabaseClient
@@ -664,7 +651,6 @@ async function saveQuizResultOnline(result) {
                         markAttemptCompleted(normalizedNis, "existing_online_result");
                         return true;
                     }
-                    if (error) console.warn("Pemeriksaan percobaan online tidak tersedia:", error.message);
                 } catch (e) {
                     console.warn("Pemeriksaan percobaan online gagal:", e);
                 }
@@ -678,8 +664,6 @@ async function saveQuizResultOnline(result) {
             const key = `pkwu_quiz_deadline_${currentUser.nis}`;
             let storedDeadline = 0;
             try { storedDeadline = Number(localStorage.getItem(key) || 0); } catch (e) {}
-            // Deadline yang sudah kedaluwarsa tidak boleh memulai ulang 60 menit.
-            // Jika siswa kembali setelah batas waktu, timer langsung mengakhiri ulangan.
             quizDeadline = storedDeadline > 0 ? storedDeadline : Date.now() + QUIZ_DURATION_MS;
             try { if (!storedDeadline) localStorage.setItem(key, String(quizDeadline)); } catch (e) {}
             quizTimeoutInProgress = false;
@@ -720,11 +704,9 @@ async function saveQuizResultOnline(result) {
             stopQuizTimer();
             const expiredNis = String(currentUser.nis);
             const expiredName = currentUser.nama;
-            // Kunci percobaan langsung saat waktu habis, meskipun penyimpanan online gagal.
             markAttemptCompleted(expiredNis, "time_expired");
             const timer = document.getElementById('quiz-timer');
             if (timer) timer.textContent = '00:00';
-            // Simpan nilai berdasarkan jawaban benar yang sudah dikerjakan sebelum logout.
             try {
                 await saveQuizResultForTeacher();
             } catch (e) {
@@ -734,12 +716,11 @@ async function saveQuizResultOnline(result) {
             handleLogout();
             const errorBox = document.getElementById('login-error');
             if (errorBox) {
-                errorBox.textContent = `Waktu ulangan ${expiredName} telah habis. Nilai sementara telah disimpan pada perangkat ini; penyimpanan online bergantung pada koneksi database.`;
+                errorBox.textContent = `Waktu ulangan ${expiredName} telah habis. Nilai sementara telah disimpan pada perangkat ini.`;
                 errorBox.classList.remove('hidden');
             }
         }
 
-        // Kata sandi login guru. Ganti sesuai kebutuhan sebelum dibagikan ke siswa.
         const TEACHER_PASSWORD = "guru2026";
 
         function switchLoginTab(role) {
@@ -747,20 +728,16 @@ async function saveQuizResultOnline(result) {
             const btnGuru = document.getElementById('tab-btn-guru');
             const formSiswa = document.getElementById('login-form');
             const formGuru = document.getElementById('teacher-login-form');
-            const helperSiswa = document.getElementById('siswa-helper');
-
             if (role === 'guru') {
                 btnGuru.className = "py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-amber-700 shadow";
                 btnSiswa.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-700";
                 formGuru.classList.remove('hidden');
                 formSiswa.classList.add('hidden');
-                helperSiswa.classList.add('hidden');
             } else {
                 btnSiswa.className = "py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-tech-700 shadow";
                 btnGuru.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-700";
                 formSiswa.classList.remove('hidden');
                 formGuru.classList.add('hidden');
-                helperSiswa.classList.remove('hidden');
             }
         }
 
@@ -784,11 +761,11 @@ async function saveQuizResultOnline(result) {
             errorBox.classList.remove('hidden');
             try {
                 if (localStorage.getItem(needsTeacherResetKey(foundStudent.nis))) {
-                    errorBox.textContent = '⛔ Akses ulangan dikunci karena sesi sebelumnya terdeteksi melanggar aturan (membuka tab atau meninggalkan halaman). Silakan minta guru mereset akses melalui dashboard guru.';
+                    errorBox.textContent = '⛔ Akses ulangan dikunci karena pelanggaran sesi. Minta guru mereset akses melalui dashboard guru.';
                     return;
                 }
                 if (await hasCompletedAttempt(foundStudent.nis)) {
-                    errorBox.textContent = '⛔ NISN ini sudah menyelesaikan ulangan atau waktu pengerjaannya telah habis. Setiap siswa hanya diizinkan mengikuti ulangan satu kali, kecuali guru mereset akses.';
+                    errorBox.textContent = '⛔ NISN ini sudah menyelesaikan ulangan atau waktu pengerjaannya telah habis.';
                     return;
                 }
 
@@ -801,7 +778,6 @@ async function saveQuizResultOnline(result) {
                 document.getElementById('user-badge').classList.add('flex');
                 document.getElementById('student-name-display').innerText = currentUser.nama;
                 document.getElementById('student-nis-display').innerText = currentUser.nis;
-                // Jika siswa keluar sebelum selesai, deadline tetap disimpan agar waktu tidak diulang.
                 initQuiz();
                 startQuizTimer();
                 document.getElementById('kuis').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -813,9 +789,7 @@ async function saveQuizResultOnline(result) {
 
         function handleLogout() {
             stopQuizTimer();
-            // Lepaskan penanda sesi hanya jika tab ini pemilik sesi aktif.
             if (currentUser) clearActiveStudentSession(currentUser.nis);
-            // Jangan hapus deadline saat siswa keluar manual; login kembali melanjutkan sisa waktu.
             currentUser = null;
             document.getElementById('nis-input').value = '';
             document.getElementById('login-error').classList.add('hidden');
@@ -825,9 +799,6 @@ async function saveQuizResultOnline(result) {
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
-        /* ===================================================
-           AUTENTIKASI GURU & DASHBOARD NILAI SISWA
-           =================================================== */
         function handleTeacherLogin(event) {
             event.preventDefault();
             const passInput = document.getElementById('teacher-password-input').value;
@@ -838,13 +809,9 @@ async function saveQuizResultOnline(result) {
                 errorBox.classList.add('hidden');
                 document.getElementById('login-modal').classList.add('hidden');
                 document.getElementById('teacher-password-input').value = '';
-
-                // Tampilkan badge & navigasi khusus guru
                 document.getElementById('teacher-badge').classList.remove('hidden');
                 document.getElementById('teacher-badge').classList.add('flex');
                 document.getElementById('nav-dashboard-guru').classList.remove('hidden');
-
-                // Langsung tampilkan dashboard
                 document.getElementById('dashboard-guru').classList.remove('hidden');
                 loadTeacherDashboard();
                 document.getElementById('dashboard-guru').scrollIntoView({ behavior: 'smooth' });
@@ -891,7 +858,6 @@ async function saveQuizResultOnline(result) {
             } catch (e) { localResults = []; }
             localResults = localResults.map(normalizeResult);
 
-            // Selalu tampilkan seluruh 36 siswa dari roster.
             const rosterResults = studentDatabase.map(student => normalizeResult({
                 nis: student.nis,
                 nama: student.nama,
@@ -904,7 +870,6 @@ async function saveQuizResultOnline(result) {
                 waktu: ""
             }));
 
-            // Merge berdasarkan NISN yang sudah dinormalisasi.
             const mergeResults = (base, incoming) => {
                 incoming.forEach(raw => {
                     const item = normalizeResult(raw);
@@ -912,7 +877,6 @@ async function saveQuizResultOnline(result) {
                     const idx = base.findIndex(x => String(x.nis).trim() === item.nis);
                     if (idx >= 0) {
                         const old = base[idx];
-                        // Data online yang memiliki waktu dianggap sebagai hasil terbaru.
                         const onlineHasScore = Boolean(item.waktu) || item.skor !== null;
                         base[idx] = {
                             ...old,
@@ -939,9 +903,6 @@ async function saveQuizResultOnline(result) {
 
             if (supabaseClient) {
                 try {
-                    // Jangan memfilter mapel di server. Ambil semua kolom hasil_kuis_bk,
-                    // lalu filter PKWU di browser. Ini menghindari masalah perbedaan
-                    // kapitalisasi/spasi pada kolom mapel.
                     const { data, error } = await supabaseClient
                         .from("hasil_kuis_bk")
                         .select("id, nis, nama, mapel, materi, kelas, skor, dekomposisi, pola, abstraksi, algoritma, waktu")
@@ -954,17 +915,16 @@ async function saveQuizResultOnline(result) {
                         const allOnline = Array.isArray(data) ? data : [];
                         const pkwuRows = allOnline.filter(r => String(r.mapel || '').trim().toUpperCase() === 'PKWU');
                         combined = mergeResults(combined, pkwuRows);
-                        sourceNote.innerHTML = `<span class='text-emerald-400 font-semibold'>● Terhubung ke database online.</span> Terbaca <b>${pkwuRows.length}</b> hasil PKWU dari Supabase + daftar ${studentDatabase.length} siswa.`;
+                        sourceNote.innerHTML = `<span class='text-emerald-400 font-semibold'>● Terhubung ke database online.</span> Terbaca <b>${pkwuRows.length}</b> hasil PKWU dari Supabase.`;
                     }
                 } catch (e) {
                     console.error("Supabase dashboard error:", e);
-                    sourceNote.innerHTML = `<span class='text-red-400 font-semibold'>● Koneksi database gagal.</span> <span class='text-red-300'>${String(e?.message || e).replace(/</g,'&lt;')}</span>`;
+                    sourceNote.innerHTML = `<span class='text-red-400 font-semibold'>● Koneksi database gagal.</span>`;
                 }
             } else {
                 sourceNote.innerHTML = "<span class='text-amber-400 font-semibold'>● Database online belum dikonfigurasi.</span>";
             }
 
-            // Urutkan persis sesuai daftar siswa.
             combined.sort((a, b) => {
                 const ai = studentDatabase.findIndex(s => String(s.nis).trim() === String(a.nis).trim());
                 const bi = studentDatabase.findIndex(s => String(s.nis).trim() === String(b.nis).trim());
@@ -1023,27 +983,46 @@ async function saveQuizResultOnline(result) {
             document.getElementById('stat-belum-tuntas').innerText = belumTuntas;
         }
 
-        function resetStudentAttempt(nis) {
+        // FUNGSI RESET YANG DIPERBAIKI (ONLINE & OFFLINE)
+        async function resetStudentAttempt(nis) {
             const student = studentDatabase.find(s => String(s.nis) === String(nis));
             if (!student) { alert('Data siswa tidak ditemukan.'); return; }
-            if (!confirm(`Reset akses ulangan untuk ${student.nama} (${student.nis})? Siswa akan diizinkan login dan mengerjakan ulang satu kali.`)) return;
+            if (!confirm(`Reset akses ulangan untuk ${student.nama} (${student.nis})? Siswa akan diizinkan login dan mengerjakan ulang.`)) return;
+            
             try {
+                // 1. Bersihkan status lokal perangkat
                 localStorage.removeItem(attemptCompletedKey(nis));
                 localStorage.removeItem(needsTeacherResetKey(nis));
                 localStorage.removeItem(tabViolationKey(nis));
                 localStorage.removeItem(`pkwu_quiz_deadline_${nis}`);
                 localStorage.setItem(resetAuthorizedKey(nis), '1');
+                
                 const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
                 if (active && String(active.nis) === String(nis)) localStorage.removeItem(activeSessionKey());
+                
                 const storageKey = 'bk_quiz_results_v1';
                 const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-                if (Array.isArray(saved)) localStorage.setItem(storageKey, JSON.stringify(saved.filter(r => String(r.nis || '').trim() !== String(nis))));
+                if (Array.isArray(saved)) {
+                    localStorage.setItem(storageKey, JSON.stringify(saved.filter(r => String(r.nis || '').trim() !== String(nis))));
+                }
+
+                // 2. Hapus data nilai siswa di Supabase agar bisa ujian kembali secara online
+                if (supabaseClient) {
+                    const { error } = await supabaseClient
+                        .from("hasil_kuis_bk")
+                        .delete()
+                        .eq("nis", String(nis).trim());
+
+                    if (error) {
+                        console.warn("Gagal menghapus data di Supabase:", error.message);
+                    }
+                }
+
+                alert(`Akses ulangan ${student.nama} telah direset (online & offline). Siswa dapat login kembali.`);
+                loadTeacherDashboard();
             } catch (e) {
-                alert('Reset lokal gagal: ' + (e.message || e));
-                return;
+                alert('Gagal mereset: ' + (e.message || e));
             }
-            alert(`Akses ulangan ${student.nama} telah direset pada browser ini. Siswa dapat login kembali.`);
-            loadTeacherDashboard();
         }
 
         function filterTeacherTable() {
@@ -1080,323 +1059,7 @@ async function saveQuizResultOnline(result) {
             setTimeout(() => URL.revokeObjectURL(link.href), 1000);
         }
 
-        /* ===================================================
-           1. DETAIL PILLAR DATA & INTERACTOR
-           =================================================== */
-        const pillarDetails = {
-            dekomposisi: {
-                title: "1. Identifikasi Ide (Decomposition)",
-                color: "text-blue-400",
-                desc: "Identifikasi Ide adalah teknik memecah masalah yang kompleks atau sistem yang besar menjadi bagian-bagian yang lebih kecil, lebih sederhana, dan lebih mudah untuk dianalisis dan diselesaikan secara independen.",
-                example: "<strong>Contoh Kejuruan (Sistem Kasir Minimarket):</strong> Daripada membuat seluruh sistem sekaligus, pengembang memecahnya menjadi modul: (1) Modul Scan Barcode, (2) Modul Hitung Diskon, (3) Modul Cetak Struk, dan (4) Modul Laporan Stok."
-            },
-            pola: {
-                title: "2. Riset Pasar (Pattern Recognition)",
-                color: "text-emerald-400",
-                desc: "Pengenalan pola adalah kemampuan untuk menemukan kesamaan, keteraturan, atau tren di antara masalah-masalah kecil yang telah didekomposisi atau dari pengalaman masalah masa lalu.",
-                example: "<strong>Contoh Sehari-hari (Manajemen Waktu Belajar):</strong> Mengamati bahwa konsentrasi belajar selalu menurun setelah pukul 21.00, sehingga jadwal belajar rumit dipindahkan ke pukul 16.00."
-            },
-            abstraksi: {
-                title: "3. Abstraksi (Abstraction)",
-                color: "text-amber-400",
-                desc: "Abstraksi adalah proses menyaring dan menyembunyikan detail-detail yang tidak relevan, sehingga kita hanya fokus pada karakteristik umum dan informasi yang penting bagi penyelesaian masalah.",
-                example: "<strong>Contoh Kejuruan (Peta Navigasi Kurir Delivery):</strong> Peta digital hanya menampilkan nama jalan, kemacetan, dan jarak, tanpa menampilkan jenis pohon di pinggir jalan atau warna cat rumah warga."
-            },
-            algoritma: {
-                title: "4. Rencana Produksi (Algorithm Design)",
-                color: "text-purple-400",
-                desc: "Algoritma adalah penyusunan langkah-langkah instruksi secara sistematis, logis, dan terurut yang dapat diikuti oleh manusia maupun komputer untuk menghasilkan solusi yang konsisten.",
-                example: "<strong>Contoh Kejuruan (Standard Operating Procedure / SOP BENGKEL):</strong> Langkah 1: Cek tegangan aki -> Langkah 2: Jika rendah, lakukan charger -> Langkah 3: Jika normal, periksa busi -> Langkah 4: Uji kelistrikan starter."
-            }
-        };
-
-        function showPillarDetail(pillarKey) {
-            const data = pillarDetails[pillarKey];
-            const box = document.getElementById('pillar-detail-content');
-            box.innerHTML = `
-                <div class="transition-all duration-300">
-                    <h3 class="text-2xl font-bold ${data.color}">${data.title}</h3>
-                    <p class="text-slate-300 text-sm leading-relaxed">${data.desc}</p>
-                    <div class="mt-4 p-4 rounded-xl bg-slate-800/80 border border-slate-700 text-xs sm:text-sm text-slate-200">
-                        ${data.example}
-                    </div>
-                </div>
-            `;
-        }
-
-        /* Switch Tab Contoh Case */
-        function switchCaseTab(type) {
-            const btnSehari = document.getElementById('tab-sehari-hari');
-            const btnKejuruan = document.getElementById('tab-kejuruan');
-            const contentSehari = document.getElementById('content-sehari-hari');
-            const contentKejuruan = document.getElementById('content-kejuruan');
-
-            if (type === 'sehari-hari') {
-                btnSehari.className = "flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all bg-white text-tech-600 shadow-sm";
-                btnKejuruan.className = "flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all text-slate-600 hover:text-slate-900";
-                contentSehari.classList.remove('hidden');
-                contentKejuruan.classList.add('hidden');
-            } else {
-                btnKejuruan.className = "flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all bg-white text-tech-600 shadow-sm";
-                btnSehari.className = "flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all text-slate-600 hover:text-slate-900";
-                contentKejuruan.classList.remove('hidden');
-                contentSehari.classList.add('hidden');
-            }
-        }
-
-        /* ===================================================
-           2. INTERACTIVE SIMULATION LAB LOGIC
-           =================================================== */
-        let currentScenario = 1;
-        let currentSimStep = 1;
-        const simSelections = { step1: null, step2: null, step3: null, step4: null };
-
-        const scenarios = {
-            1: {
-                title: "Skenario 1: Optimasi Sistem Layanan Katering & Restoran",
-                steps: [
-                    {
-                        pillar: "Identifikasi Ide",
-                        instruction: "Restoran menerima pesanan katering 500 porsi paket makan siang kantor. Pilih tindakan Identifikasi Ide yang paling tepat untuk mengurai masalah ini:",
-                        options: [
-                            { text: "Membeli semua bahan sekaligus tanpa mencatat rincian menu.", correct: false },
-                            { text: "Memecah proses menjadi 4 sub-tugas: (A) Pembelian Bahan, (B) Persiapan/Memasak, (C) Pengemasan, (D) Armada Pengiriman.", correct: true },
-                            { text: "Langsung memasak tanpa membagi tugas kepada staf koki.", correct: false }
-                        ],
-                        explanation: "Identifikasi Ide memecah proyek besar menjadi 4 tahapan sub-proses yang terstruktur."
-                    },
-                    {
-                        pillar: "Riset Pasar",
-                        instruction: "Berdasarkan data historis pesanan bulan lalu, jam berapa pengiriman katering sering terjebak kemacetan lalu lintas?",
-                        options: [
-                            { text: "Pola data menunjukkan jam 11.00 - 12.30 adalah jam puncak kemacetan jalan utama.", correct: true },
-                            { text: "Kemacetan terjadi secara acak dan tidak pernah memiliki pola sama sekali.", correct: false },
-                            { text: "Pola menunjukkan jalan selalu sepi pada jam istirahat makan siang.", correct: false }
-                        ],
-                        explanation: "Menemukan pola jam sibuk membantu merencanakan waktu keberangkatan armada lebih awal."
-                    },
-                    {
-                        pillar: "Abstraksi",
-                        instruction: "Saat merancang rute dan jadwal pengemasan, informasi mana yang HARUS DIABSTRAKSIKAN (diabaikan)?",
-                        options: [
-                            { text: "Alamat tujuan pengiriman dan jumlah porsi.", correct: false },
-                            { text: "Waktu makanan harus sampai di lokasi.", correct: false },
-                            { text: "Warna mobil pribadi milik pemesan dan hobi dari staf admin katering.", correct: true }
-                        ],
-                        explanation: "Abstraksi mengabaikan detail yang tidak mempengaruhi keberhasilan pengiriman makanan."
-                    },
-                    {
-                        pillar: "Rencana Produksi",
-                        instruction: "Susun algoritma urutan instruksi kerja dapur katering berikut yang logis:",
-                        options: [
-                            { text: "Kemas makanan -> Kirim -> Masak -> Beli bahan.", correct: false },
-                            { text: "Beli bahan segar -> Olah & Masak -> Kemas porsi presisi -> Kirim sebelum pukul 11.00.", correct: true },
-                            { text: "Kirim makanan -> Beli bahan -> Masak.", correct: false }
-                        ],
-                        explanation: "Algoritma harus berurutan secara kronologis dan logis dari hulu ke hilir."
-                    }
-                ]
-            },
-            2: {
-                title: "Skenario 2: Optimasi Rute Pengiriman Kurir Toko Online",
-                steps: [
-                    {
-                        pillar: "Identifikasi Ide",
-                        instruction: "Seorang kurir harus mengantar 30 paket dalam satu wilayah kecamatan. Langkah dekomposisi awal adalah:",
-                        options: [
-                            { text: "Mengelompokkan paket berdasarkan kelurahan/zona area terdekat.", correct: true },
-                            { text: "Mengantar paket secara acak berdasarkan warna bungkusnya.", correct: false },
-                            { text: "Membiarkan semua paket menumpuk di dalam gudang tanpa dipilah.", correct: false }
-                        ],
-                        explanation: "Membagi wilayah menjadi zona-zona kecil mempermudah pemetaan rute."
-                    },
-                    {
-                        pillar: "Riset Pasar",
-                        instruction: "Kurir mengetahui pola penerima paket di perkantoran vs pemukiman warga:",
-                        options: [
-                            { text: "Paket kantor lebih baik diantar jam kerja (08.00-16.00), sedangkan rumah warga sore hari.", correct: true },
-                            { text: "Orang di kantor lebih suka diantar jam 2 malam.", correct: false },
-                            { text: "Semua penerima paket selalu berada di rumah 24 jam nonstop.", correct: false }
-                        ],
-                        explanation: "Pola keberadaan penerima memaksimalkan persentase paket terantar sukses."
-                    },
-                    {
-                        pillar: "Abstraksi",
-                        instruction: "Dalam aplikasi navigasi kurir, data mana yang paling utama difokuskan?",
-                        options: [
-                            { text: "Riwayat pendidikan pembeli paket.", correct: false },
-                            { text: "Lokasi GPS, status lalu lintas real-time, dan estimasi waktu tempuh.", correct: true },
-                            { text: "Merk sepatu yang dipakai oleh penerima paket.", correct: false }
-                        ],
-                        explanation: "Hanya data GPS dan lalu lintas yang relevan untuk mempercepat pengiriman."
-                    },
-                    {
-                        pillar: "Rencana Produksi",
-                        instruction: "Manakah prosedur pengantaran paket (Algoritma) yang paling efisien?",
-                        options: [
-                            { text: "Urutkan paket berdasarkan zona terdekat -> Scan barcode -> Hubungi penerima -> Serahkan paket & foto bukti.", correct: true },
-                            { text: "Foto paket -> Cari rumah -> Ambil paket di gudang -> Hubungi penerima.", correct: false },
-                            { text: "Serahkan paket -> Scan barcode tanpa mengecek alamat.", correct: false }
-                        ],
-                        explanation: "Prosedur baku yang sistematis mencegah kesalahan alamat dan mempercepat kerja."
-                    }
-                ]
-            }
-        };
-
-        function loadScenario(scenNum) {
-            currentScenario = scenNum;
-            currentSimStep = 1;
-            simSelections.step1 = null;
-            simSelections.step2 = null;
-            simSelections.step3 = null;
-            simSelections.step4 = null;
-
-            document.getElementById('sim-title').innerText = scenarios[scenNum].title;
-            document.getElementById('btn-scen-1').className = scenNum === 1 ? "px-4 py-2 rounded-xl text-xs font-semibold bg-tech-600 text-white" : "px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700";
-            document.getElementById('btn-scen-2').className = scenNum === 2 ? "px-4 py-2 rounded-xl text-xs font-semibold bg-tech-600 text-white" : "px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700";
-
-            renderSimStep();
-        }
-
-        function renderSimStep() {
-            const stepData = scenarios[currentScenario].steps[currentSimStep - 1];
-            const container = document.getElementById('sim-body-container');
-
-            // Update step indicators
-            for (let i = 1; i <= 4; i++) {
-                const ind = document.getElementById(`step-ind-${i}`);
-                if (i <= currentSimStep) {
-                    ind.className = "h-2 rounded-full bg-tech-500 transition-all";
-                } else {
-                    ind.className = "h-2 rounded-full bg-slate-800 transition-all";
-                }
-            }
-
-            document.getElementById('sim-step-text').innerText = `Langkah ${currentSimStep} dari 4 • Pilar: ${stepData.pillar}`;
-            document.getElementById('btn-sim-prev').disabled = currentSimStep === 1;
-
-            let html = `
-                <div class="space-y-6">
-                    <div class="flex items-center gap-3">
-                        <span class="px-3 py-1 rounded-lg bg-tech-500/20 text-tech-400 font-mono text-xs font-bold">Pilar ${currentSimStep}: ${stepData.pillar}</span>
-                    </div>
-                    <p class="text-base sm:text-lg text-slate-200 font-medium">${stepData.instruction}</p>
-                    <div class="space-y-3">
-            `;
-
-            stepData.options.forEach((opt, idx) => {
-                const isSelected = simSelections[`step${currentSimStep}`] === idx;
-                let btnStyle = "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750";
-                if (isSelected) {
-                    btnStyle = opt.correct ? "bg-emerald-950 border-emerald-500 text-emerald-200" : "bg-red-950 border-red-500 text-red-200";
-                }
-
-                html += `
-                    <button onclick="selectSimOption(${idx})" class="w-full text-left p-4 rounded-xl border ${btnStyle} transition-all text-sm flex items-start gap-3">
-                        <span class="w-5 h-5 rounded-full border border-slate-500 flex items-center justify-center text-xs font-mono shrink-0 mt-0.5">${String.fromCharCode(65 + idx)}</span>
-                        <span>${opt.text}</span>
-                    </button>
-                `;
-            });
-
-            if (simSelections[`step${currentSimStep}`] !== null) {
-                const selectedIdx = simSelections[`step${currentSimStep}`];
-                const selectedOpt = stepData.options[selectedIdx];
-                html += `
-                    <div class="p-4 rounded-xl ${selectedOpt.correct ? 'bg-emerald-900/40 border border-emerald-700/50 text-emerald-300' : 'bg-red-900/40 border border-red-700/50 text-red-300'} text-xs sm:text-sm">
-                        <strong>${selectedOpt.correct ? '✅ Tepat Sekali!' : '❌ Masih Kurang Tepat!'}</strong> ${stepData.explanation}
-                    </div>
-                `;
-            }
-
-            html += `</div></div>`;
-            container.innerHTML = html;
-        }
-
-        function selectSimOption(optIdx) {
-            simSelections[`step${currentSimStep}`] = optIdx;
-            renderSimStep();
-        }
-
-        function nextSimStep() {
-            if (currentSimStep < 4) {
-                currentSimStep++;
-                renderSimStep();
-            } else {
-                // Show completion modal/summary
-                document.getElementById('sim-body-container').innerHTML = `
-                    <div class="text-center py-8 space-y-4">
-                        <div class="w-16 h-16 bg-brand-500/20 text-brand-400 rounded-full flex items-center justify-center text-3xl mx-auto">🏆</div>
-                        <h4 class="text-2xl font-bold text-white">Simulasi Selesai!</h4>
-                        <p class="text-slate-300 text-sm max-w-md mx-auto">Kamu telah berhasil menerapkan 4 pilar Wirausaha Kerajinan untuk memecahkan masalah dalam ${scenarios[currentScenario].title}.</p>
-                        <button onclick="loadScenario(${currentScenario === 1 ? 2 : 1})" class="px-6 py-2.5 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-500 transition-all">
-                            Coba Skenario Berikutnya &rarr;
-                        </button>
-                    </div>
-                `;
-            }
-        }
-
-        function prevSimStep() {
-            if (currentSimStep > 1) {
-                currentSimStep--;
-                renderSimStep();
-            }
-        }
-
-        /* ===================================================
-           3. INTERACTIVE 10-QUESTION QUIZ DATA & ENGINE
-           =================================================== */
-
-        const planDetails = {
-            budaya:{title:"🎭 Budaya Non Benda",body:"Budaya non benda adalah unsur budaya yang berupa gagasan, pengetahuan, nilai, tradisi, cerita, bahasa, seni pertunjukan, dan praktik sosial. Dalam usaha kerajinan, unsur tersebut dapat menjadi sumber cerita, bentuk, motif, fungsi, atau identitas produk.",tips:"Pemantik: Unsur budaya apa di daerahmu yang memiliki cerita kuat tetapi belum banyak dikembangkan menjadi produk?"},
-            ide:{title:"💡 Menentukan Ide Produk",body:"Ide produk perlu menghubungkan inspirasi budaya dengan kebutuhan pengguna. Tentukan fungsi, bentuk, bahan, ukuran, keunikan, nilai budaya, dan pembeda dari produk yang sudah ada.",tips:"Uji ide dengan kalimat: 'Produk ini dibuat untuk siapa, berguna untuk apa, dan nilai budaya apa yang disampaikan?'"},
-            pasar:{title:"🔎 Riset Pasar",body:"Riset pasar membantu mengenali target konsumen, kebutuhan, daya beli, tren, pesaing, saluran penjualan, serta respons calon pembeli. Data sederhana dapat diperoleh melalui observasi, wawancara, survei, dan uji produk.",tips:"Jangan hanya bertanya 'suka atau tidak'. Tanyakan kebutuhan, harga yang bersedia dibayar, desain, ukuran, dan alasan membeli."},
-            produksi:{title:"🛠️ Perencanaan Produksi",body:"Rencanakan bahan, alat, tenaga kerja, urutan proses, waktu pengerjaan, kapasitas, standar kualitas, kemasan, dan keselamatan kerja. Buat alternatif jika bahan atau alat utama sulit diperoleh.",tips:"Buat prototipe kecil sebelum produksi lebih banyak untuk menguji fungsi dan kualitas."},
-            usaha:{title:"💰 Rencana Bisnis",body:"Rencana usaha mencakup biaya, HPP, harga jual, sumber pendapatan, promosi, distribusi, risiko, dan evaluasi. Harga perlu mempertimbangkan biaya, nilai produk, target pasar, serta kondisi persaingan.",tips:"Keputusan usaha sebaiknya berdasarkan data, bukan sekadar perkiraan."}
-        };
-        function showPlanDetail(key){
-            const d=planDetails[key]||planDetails.budaya;
-            document.getElementById('plan-detail-content').innerHTML=`<h3 class="text-2xl font-extrabold text-amber-300">${d.title}</h3><p class="mt-3 text-slate-300 leading-relaxed">${d.body}</p><div class="mt-4 p-4 rounded-xl bg-white/10 border border-white/10 text-sm"><b class="text-amber-300">💭 ${d.tips}</b></div>`;
-        }
-
-        const businessSteps=[
-          {title:"1. Pilih sumber inspirasi",prompt:"Mana yang paling layak menjadi sumber inspirasi produk?",options:["Cerita rakyat/legenda lokal yang dipahami maknanya","Meniru logo merek terkenal","Memilih tren tanpa hubungan budaya","Memakai simbol budaya tanpa memahami maknanya"],score:[25,5,10,0]},
-          {title:"2. Tentukan target pasar",prompt:"Siapa target awal yang paling spesifik untuk produk suvenir budaya berukuran kecil?",options:["Semua orang tanpa segmentasi","Pelajar/remaja dan wisatawan yang mencari suvenir terjangkau","Hanya perusahaan besar","Tidak perlu menentukan target"],score:[5,25,10,0]},
-          {title:"3. Rancang produk",prompt:"Konsep produk mana yang paling kuat?",options:["Indah tetapi tidak memiliki fungsi","Fungsional, estetis, mudah digunakan, dan menjelaskan cerita budayanya","Mahal agar terlihat mewah","Menyalin produk pesaing"],score:[10,25,10,0]},
-          {title:"4. Hitung biaya",prompt:"Total biaya membuat 10 produk: bahan Rp200.000 + kemasan Rp50.000 + tenaga kerja Rp100.000. Berapa HPP per produk?",options:["Rp20.000","Rp25.000","Rp35.000","Rp50.000"],score:[5,10,25,0]},
-          {title:"5. Pilih strategi promosi",prompt:"Promosi awal yang paling informatif untuk target remaja adalah...",options:["Konten video singkat tentang cerita budaya + fungsi produk + harga/cara beli","Tidak melakukan promosi","Hanya mencetak nama produk","Mengunggah foto tanpa keterangan"],score:[25,0,5,10]}
-        ];
-        let businessStep=0,businessScore=0,businessChoice=[];
-        function renderBusinessSim(){
-            const st=businessSteps[businessStep];
-            document.getElementById('business-step-text').innerText=`Langkah ${businessStep+1} dari ${businessSteps.length}`;
-            document.getElementById('sim-score').innerText=businessScore;
-            for(let i=1;i<=5;i++)document.getElementById('sim-p'+i).className=`h-2 rounded-full ${i<=businessStep+1?'bg-amber-500':'bg-slate-800'}`;
-            document.getElementById('sim-prev-new').disabled=businessStep===0;
-            document.getElementById('sim-next-new').innerText=businessStep===businessSteps.length-1?'Lihat Hasil →':'Pilih & Lanjut →';
-            document.getElementById('business-sim-body').innerHTML=`<div><span class="text-xs text-amber-400 font-mono">TANTANGAN</span><h4 class="text-2xl font-extrabold mt-1">${st.title}</h4><p class="text-slate-300 mt-3">${st.prompt}</p><div class="grid gap-3 mt-6">${st.options.map((x,i)=>`<button onclick="chooseBusiness(${i})" class="business-option text-left p-4 rounded-2xl border border-slate-700 bg-slate-900 hover:border-amber-400 hover:bg-slate-800 transition-all"><span class="inline-flex w-7 h-7 rounded-full bg-slate-800 items-center justify-center text-xs font-bold mr-2">${String.fromCharCode(65+i)}</span>${x}</button>`).join('')}</div><p id="business-choice-note" class="text-xs text-slate-500 mt-4">Pilih satu jawaban untuk melanjutkan.</p></div>`;
-        }
-        function chooseBusiness(i){
-            businessChoice[businessStep]=i;
-            businessScore=businessChoice.reduce((sum,ch,idx)=>sum+(ch==null?0:businessSteps[idx].score[ch]),0);
-            document.querySelectorAll('.business-option').forEach((b,idx)=>b.classList.toggle('border-amber-400',idx===i));
-            document.getElementById('business-choice-note').innerHTML='<span class="text-amber-300 font-semibold">Pilihan tersimpan.</span> Klik tombol lanjut di bawah.';
-        }
-        function businessNext(){
-            if(businessChoice[businessStep]==null){document.getElementById('business-choice-note').innerHTML='<span class="text-rose-300 font-semibold">Pilih salah satu opsi terlebih dahulu.</span>';return;}
-            if(businessStep<businessSteps.length-1){businessStep++;renderBusinessSim();}else showBusinessResult();
-        }
-        function businessPrev(){if(businessStep>0){businessStep--;renderBusinessSim();}}
-        function showBusinessResult(){
-            document.getElementById('business-sim-body').innerHTML=`<div class="text-center py-10"><div class="text-6xl">📦</div><h4 class="text-3xl font-black mt-3">Rencana Selesai!</h4><p class="text-slate-300 mt-2">Skor rencana usaha: <b class="text-amber-300 text-xl">${businessScore}/125</b></p><p class="max-w-xl mx-auto text-sm text-slate-400 mt-3">Gunakan skor ini sebagai bahan refleksi. Perhatikan apakah keputusanmu sudah menghubungkan nilai budaya, kebutuhan pasar, kelayakan produksi, biaya, dan promosi.</p></div>`;
-            document.getElementById('sim-result').classList.remove('hidden');
-            document.getElementById('sim-next-new').disabled=true;
-        }
-        function resetBusinessSim(){businessStep=0;businessScore=0;businessChoice=[];document.getElementById('sim-result').classList.add('hidden');document.getElementById('sim-next-new').disabled=false;renderBusinessSim();}
-
-        const quizQuestions = [{"pillar": "Budaya & Ide", "question": "Seorang siswa membuat gantungan kunci terinspirasi pantun daerah. Produk menarik, tetapi tidak ada yang membeli karena ukurannya besar dan mudah patah. Tindakan paling tepat sebelum produksi berikutnya adalah…", "options": ["Mengganti seluruh inspirasi budaya dengan tren luar negeri", "Menganalisis kebutuhan target konsumen dan menguji prototipe", "Menaikkan harga agar terlihat eksklusif", "Memproduksi lebih banyak agar dikenal", "Mengurangi promosi dan menunggu pembeli"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Kelompok memilih cerita rakyat sebagai inspirasi diorama. Agar makna cerita tidak hilang saat menjadi produk benda, langkah awal yang paling penting adalah…", "options": ["Memilih warna yang sedang populer", "Menghitung laba sebelum menentukan produk", "Memahami pesan cerita dan mengidentifikasi simbol kuncinya", "Membeli bahan paling mahal", "Menyalin diorama yang sudah laris"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Survei menunjukkan wisatawan menginginkan suvenir ringan, tahan lama, dan mudah dibawa. Desain yang paling sesuai adalah…", "options": ["Patung besar dari kayu berat", "Hiasan rapuh tanpa kemasan", "Miniatur ringkas dengan bahan kuat dan kemasan pelindung", "Produk besar dengan detail yang mudah lepas", "Produk tanpa mempertimbangkan biaya"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Sebuah usaha memiliki ide kreatif, tetapi bahan utama hanya tersedia pada musim tertentu. Keputusan perencanaan paling rasional adalah…", "options": ["Tetap menjanjikan produksi tanpa batas", "Menganalisis pasokan, mencari bahan alternatif yang sesuai, dan menyesuaikan kapasitas", "Mengabaikan jadwal pasokan", "Membeli seluruh bahan tanpa menghitung modal", "Menghapus proses pengendalian kualitas"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Pengrajin menggunakan motif sakral sebagai dekorasi komersial tanpa memahami maknanya. Risiko utama keputusan tersebut adalah…", "options": ["Waktu produksi pasti lebih cepat", "Produk otomatis lebih murah", "Penyalahgunaan makna budaya dan penolakan masyarakat", "Target pasar menjadi lebih jelas", "Kualitas bahan meningkat"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Dari empat ide kerajinan, satu ide sangat unik tetapi tidak aman digunakan dan sulit diproduksi dengan alat yang tersedia. Prinsip memilih ide terbaik adalah…", "options": ["Memilih yang paling unik saja", "Memilih yang paling mahal", "Mempertimbangkan fungsi, estetika, keamanan, sumber daya, dan kelayakan produksi", "Memilih yang paling cepat digambar", "Memilih berdasarkan suara anggota terbanyak tanpa analisis"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Kelompok memiliki dana terbatas. Mereka perlu membuat model sebelum memproduksi 50 unit. Strategi paling tepat adalah…", "options": ["Langsung memproduksi 50 unit", "Membuat prototipe dari bahan yang sesuai atau bahan pengganti untuk menguji bentuk dan teknik", "Menghabiskan dana untuk kemasan", "Mengabaikan pengujian", "Menentukan harga tanpa mengetahui biaya"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Seorang wirausahawan tetap mengerjakan pesanan sesuai tenggat, mencatat hasil, dan memperbaiki kekurangan. Karakter yang paling tampak adalah…", "options": ["Berorientasi pada tugas dan hasil", "Menghindari tanggung jawab", "Tidak berorientasi masa depan", "Pasif terhadap peluang", "Mengutamakan penampilan"], "correct": 0, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Pemilik usaha hanya berani menjual ketika tidak ada kemungkinan rugi, sehingga selalu menolak uji pasar. Evaluasi paling tepat adalah…", "options": ["Ia selalu mengambil risiko terukur", "Ia terlalu menghindari risiko sehingga peluang belajar dan inovasi terbatas", "Ia pasti memiliki kepemimpinan kuat", "Ia sudah berorientasi masa depan", "Ia selalu kreatif"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Produk kerajinan pesaing laris. Tim siswa ingin menyalin bentuk dan mereknya persis. Alternatif yang menunjukkan orisinalitas adalah…", "options": ["Menyalin lalu mengganti label", "Meniru seluruh desain tanpa perubahan", "Mengembangkan desain sendiri dari budaya lokal, fungsi berbeda, dan kebutuhan konsumen", "Menggunakan foto pesaing sebagai logo", "Menjual produk tanpa menyebut pembuat"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Ketua kelompok selalu menentukan desain sendiri dan menolak masukan anggota. Dampak yang paling mungkin terjadi adalah…", "options": ["Semua potensi anggota pasti berkembang", "Keputusan selalu objektif", "Ide dan rasa tanggung jawab anggota berkurang sehingga kolaborasi melemah", "Biaya otomatis turun", "Risiko produksi hilang"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Pengusaha kerajinan memperkirakan tren suvenir ramah lingkungan akan meningkat. Tindakan yang paling menunjukkan orientasi masa depan adalah…", "options": ["Mengabaikan tren sampai pesaing bertindak", "Menganalisis tren dan menguji bahan ramah lingkungan dengan biaya serta mutu yang layak", "Mengubah semua produk setiap hari", "Menaikkan harga tanpa alasan", "Berhenti mengumpulkan umpan balik"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Pesanan meningkat tajam, tetapi jumlah pekerja dan alat terbatas. Keputusan terbaik untuk menjaga kualitas adalah…", "options": ["Menerima semua pesanan tanpa jadwal", "Mengurangi pemeriksaan kualitas", "Menghitung kapasitas, mengatur jadwal, dan menjelaskan tenggat realistis kepada pembeli", "Mengganti bahan dengan bahan yang tidak teruji", "Mengabaikan keselamatan kerja"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Produk kerajinan terlihat indah tetapi tidak memiliki fungsi yang jelas. Analisis yang paling tepat adalah…", "options": ["Estetika selalu cukup untuk menjamin penjualan", "Produk perlu dievaluasi dari fungsi, pengguna, nilai budaya, dan kebutuhan pasar", "Fungsi tidak perlu dipikirkan dalam kerajinan", "Harga harus dinaikkan", "Promosi dapat menggantikan fungsi produk"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Kelompok memilih target pasar remaja, tetapi membuat produk mahal dan berukuran besar tanpa survei. Kelemahan utama rencana tersebut adalah…", "options": ["Tidak ada hubungan antara produk dan target konsumen yang tervalidasi", "Terlalu banyak riset", "Bahan selalu tersedia", "Promosi terlalu tepat", "Biaya produksi sudah pasti rendah"], "correct": 0, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Dalam konsep 6M, kelompok memiliki tenaga terampil, bahan, dan alat, tetapi belum mengetahui calon pembeli. Unsur yang perlu segera diteliti adalah…", "options": ["Man", "Machine", "Market", "Method", "Material"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Modal usaha dipakai untuk membeli alat mahal, padahal produksi awal hanya membutuhkan sedikit unit dan alat dapat disewa. Evaluasi terbaik adalah…", "options": ["Pembelian alat mahal selalu benar", "Bandingkan biaya sewa dan beli serta kebutuhan kapasitas sebelum memutuskan", "Modal tidak perlu dicatat", "Mengurangi kualitas produk", "Meminjam uang sebanyak mungkin"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Produk dijual dengan harga Rp50.000, sedangkan biaya bahan dan produksi per unit Rp42.000. Biaya promosi dan kemasan tambahan belum dihitung. Kesimpulan paling tepat adalah…", "options": ["Laba pasti Rp8.000 per unit", "Harga sudah pasti tepat", "Laba belum dapat dipastikan sebelum seluruh biaya diperhitungkan", "Biaya tambahan tidak memengaruhi laba", "Harga harus diturunkan"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Sebuah produk mendapat banyak komentar positif di media sosial tetapi penjualan rendah. Langkah evaluasi paling informatif adalah…", "options": ["Menganggap komentar sama dengan pembelian", "Memeriksa harga, akses pembelian, kesesuaian produk, dan menguji strategi pemasaran", "Menghapus semua komentar", "Menghentikan pencatatan penjualan", "Meningkatkan produksi besar-besaran"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Kelompok hendak memakai cerita rakyat yang dikenal masyarakat setempat. Cara paling bertanggung jawab mengembangkan produk adalah…", "options": ["Mengubah makna cerita sesuka hati", "Mencantumkan cerita tanpa memeriksa sumber", "Memahami konteks budaya, menghormati pemilik tradisi, dan menjelaskan inspirasi secara akurat", "Mengklaim cerita sebagai ciptaan sendiri", "Menghindari semua masukan masyarakat"], "correct": 2, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Dalam tahap perancangan, ide masih berupa gambaran di pikiran. Urutan kerja yang paling logis adalah…", "options": ["Produksi massal–promosi–baru membuat sketsa", "Pencarian ide–sketsa–pemilihan ide–studi model–perencanaan produksi", "Finishing–pembahanan–pencarian ide", "Penjualan–pengemasan–baru menentukan fungsi", "Membeli bahan–menjual–membuat rencana"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Sketsa produk terlihat bagus di kertas, tetapi sambungan model tiga dimensinya tidak stabil. Keputusan yang tepat adalah…", "options": ["Mengabaikan masalah karena sketsa bagus", "Memperbaiki desain dan menguji sambungan pada studi model sebelum produksi", "Langsung menjual sketsa", "Menambah hiasan untuk menutup masalah", "Mengurangi ukuran tanpa pengujian"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Sebuah tim mulai memotong kayu sebelum gambar kerja dan kebutuhan bahan selesai. Risiko utama tindakan itu adalah…", "options": ["Produksi pasti lebih efisien", "Bahan terbuang dan ukuran tidak konsisten akibat kurangnya acuan", "Keselamatan otomatis meningkat", "Tidak ada pengaruh terhadap biaya", "Produk pasti lebih orisinal"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Dalam proses produksi, kayu telah dipotong sesuai ukuran, kemudian bagian-bagian disatukan, lalu permukaan dihaluskan dan dilapisi. Urutan tahap yang tepat adalah…", "options": ["Finishing–perakitan–pembahanan", "Pembentukan–perakitan–finishing", "Perakitan–pembahanan–pencarian ide", "Pemasaran–pembentukan–sketsa", "Studi model–penjualan–pembahanan"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Pekerja mengamplas kayu dan debu beterbangan. Upaya K3 paling sesuai adalah…", "options": ["Bekerja lebih cepat tanpa pelindung", "Menggunakan kacamata pelindung dan masker antidebu serta menjaga area kerja", "Meniup debu ke arah teman", "Membiarkan alat berserakan", "Menggunakan sarung tangan basah saja"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Setelah finishing, produk terlihat menarik tetapi permukaannya masih kasar dan ada sisa lem. Tindakan evaluasi paling tepat adalah…", "options": ["Langsung mengemas karena warna bagus", "Melakukan pemeriksaan akhir dan memperbaiki kualitas permukaan sebelum dikemas", "Menaikkan harga", "Menyembunyikan cacat pada foto", "Menghentikan pemeriksaan"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Dua bahan sama-sama tersedia: bahan A murah tetapi cepat rusak, bahan B sedikit lebih mahal tetapi lebih awet. Untuk suvenir yang sering dibawa wisatawan, keputusan terbaik adalah…", "options": ["Selalu memilih bahan termurah", "Memilih bahan B jika analisis biaya total, daya tahan, dan harga jual mendukung", "Menggunakan keduanya tanpa pengujian", "Mengabaikan fungsi produk", "Menentukan bahan berdasarkan warna saja"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Produk berbasis tarian tradisional hanya menampilkan gambar penari tanpa hubungan dengan fungsi produk. Cara meningkatkan nilai tambah adalah…", "options": ["Menambah gambar sebanyak mungkin", "Menghubungkan makna gerak atau cerita tarian dengan bentuk, fungsi, dan narasi produk", "Menghilangkan informasi budaya", "Meniru produk dari daerah lain", "Mengurangi kualitas pengerjaan"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Survei menunjukkan pembeli menyukai produk, tetapi keberatan pada kemasan yang mudah rusak saat pengiriman. Perbaikan yang paling tepat adalah…", "options": ["Mengganti seluruh produk tanpa data", "Menguji kemasan pelindung yang lebih aman dan menghitung dampaknya pada biaya serta harga", "Mengabaikan keluhan", "Mengurangi ukuran produk secara acak", "Menghapus layanan pengiriman"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Satu kelompok menerima kritik bahwa produknya sulit digunakan. Sikap wirausaha yang paling tepat adalah…", "options": ["Membela desain tanpa mendengar", "Menggunakan kritik sebagai data, mencari penyebab, lalu menguji perbaikan", "Menghentikan usaha", "Menyalahkan pembeli", "Menghapus produk dari katalog tanpa evaluasi"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Penjualan menurun setelah banyak pesaing menawarkan produk serupa. Strategi yang paling berkelanjutan adalah…", "options": ["Perang harga tanpa menghitung biaya", "Mencari pembeda melalui desain orisinal, kualitas, cerita budaya yang akurat, dan layanan", "Menyalin pesaing lebih cepat", "Mengurangi kualitas bahan", "Mengabaikan perubahan pasar"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Pengrajin membuat 100 unit berdasarkan perkiraan sendiri, tetapi hanya 20 terjual. Pelajaran utama dari kasus ini adalah…", "options": ["Produksi sebanyak mungkin selalu menguntungkan", "Perlu validasi kebutuhan pasar dan produksi bertahap berdasarkan permintaan", "Promosi tidak diperlukan", "Produk budaya tidak memiliki pasar", "Semua kegagalan disebabkan bahan"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Tim memiliki empat anggota dengan keterampilan berbeda. Pembagian kerja yang paling efektif adalah…", "options": ["Semua anggota melakukan tugas sama tanpa koordinasi", "Tugas dibagi berdasarkan kompetensi, target, tenggat, dan tetap dievaluasi bersama", "Ketua mengerjakan semuanya", "Anggota memilih tugas tanpa melihat kebutuhan", "Tidak perlu menentukan tanggung jawab"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Produk kerajinan punya cerita budaya kuat, tetapi informasi pada label tidak akurat. Dampak dan solusi terbaik adalah…", "options": ["Tidak berdampak karena label kecil", "Kepercayaan dapat turun; verifikasi informasi dan revisi label secara jujur", "Tambahkan klaim yang lebih dramatis", "Hapus nama daerah", "Naikkan harga agar tampak asli"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Usaha ingin memperluas pasar ke luar daerah. Langkah awal yang paling masuk akal adalah…", "options": ["Langsung membuka banyak cabang", "Menguji minat pasar baru, biaya distribusi, kemasan, dan pesan budaya yang mudah dipahami", "Mengabaikan selera konsumen baru", "Memproduksi tanpa batas", "Menghapus identitas lokal"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Jika bahan baku lokal terbatas, pilihan yang menunjukkan kreativitas sekaligus perencanaan adalah…", "options": ["Mengambil bahan secara berlebihan tanpa izin", "Mendesain ulang agar hemat bahan dan mengevaluasi bahan alternatif yang aman serta layak", "Menghentikan semua inovasi", "Mengganti bahan tanpa uji kualitas", "Menyembunyikan kekurangan pasokan"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Pemilik usaha mengakui kesalahan perhitungan biaya kepada mitra dan menyusun ulang anggaran. Karakter yang paling jelas adalah…", "options": ["Kejujuran dan tanggung jawab", "Menghindari risiko", "Kurang orisinal", "Tidak mandiri", "Tidak berorientasi hasil"], "correct": 0, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Produk baru belum laku pada minggu pertama. Tindakan yang paling mencerminkan ketekunan sekaligus berpikir kritis adalah…", "options": ["Mengulang cara sama tanpa evaluasi", "Menganalisis data penjualan dan umpan balik, lalu menguji perubahan secara terukur", "Menyatakan produk pasti gagal", "Menambah stok sebanyak mungkin", "Mengabaikan pembeli"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Sebuah usaha menerima pesanan khusus yang menguntungkan, tetapi desainnya berpotensi menyinggung makna adat. Keputusan terbaik adalah…", "options": ["Menerima karena laba adalah tujuan utama", "Mendiskusikan konteks dan mencari desain alternatif yang menghormati budaya sebelum menyepakati pesanan", "Menggunakan desain tanpa bertanya", "Menghapus semua informasi budaya", "Meminta pekerja merahasiakannya"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}, {"pillar": "Budaya & Ide", "question": "Kelompok menilai prototipe hanya berdasarkan penampilan, padahal produk akan digunakan sehari-hari. Kriteria tambahan paling penting adalah…", "options": ["Popularitas pembuat", "Fungsi, kenyamanan, keamanan, ketahanan, dan kemudahan produksi", "Jumlah warna saja", "Ukuran kemasan saja", "Banyaknya ornamen"], "correct": 1, "explanation": "Pilih keputusan yang paling tepat berdasarkan analisis situasi, karakter kewirausahaan, perencanaan, sumber daya, produksi, K3, pemasaran, dan evaluasi."}];
+        const quizQuestions = [{"pillar": "Budaya & Ide", "question": "Seorang siswa membuat gantungan kunci terinspirasi pantun daerah. Produk menarik, tetapi tidak ada yang membeli karena ukurannya besar dan mudah patah. Tindakan paling tepat sebelum produksi berikutnya adalah…", "options": ["Mengganti seluruh inspirasi budaya dengan tren luar negeri", "Menganalisis kebutuhan target konsumen dan menguji prototipe", "Menaikkan harga agar terlihat eksklusif", "Memproduksi lebih banyak agar dikenal", "Mengurangi promosi dan menunggu pembeli"], "correct": 1, "explanation": "Analisis kebutuhan pasar."}];
 
         let currentQuizIndex = 0;
         let quizScore = 0;
@@ -1439,7 +1102,6 @@ async function saveQuizResultOnline(result) {
             const ok=selectedQuizOption===q.correct;
             if(ok){quizScore+=2.5; pillarScores[q.pillar]+=2.5;}
             document.getElementById('btn-quiz-submit').disabled=true;
-            // Mode ujian: tidak menampilkan notifikasi benar/salah atau kunci jawaban.
             if(currentQuizIndex<quizQuestions.length-1){
                 currentQuizIndex++;
                 renderQuizQuestion();
@@ -1449,7 +1111,7 @@ async function saveQuizResultOnline(result) {
         }
         async function saveQuizResultForTeacher(){
             if(!currentUser)return {ok:false, reason:"no_student"};
-            const result={nis:String(currentUser.nis),nama:currentUser.nama,mapel:"PKWU",materi:"Wirausaha Kerajinan dengan Inspirasi Budaya Non Benda - Perencanaan Usaha Kerajinan",kelas:"X / Fase E",skor:Math.round(quizScore),dekomposisi:Number(pillarScores["Budaya & Ide"]||0),pola:Number(pillarScores["Riset Pasar"]||0),abstraksi:Number(pillarScores["Produksi"]||0),algoritma:Number(pillarScores["Keuangan & Bisnis"]||0),waktu:new Date().toISOString(),waktuTampil:new Date().toLocaleString("id-ID")};
+            const result={nis:String(currentUser.nis),nama:currentUser.nama,mapel:"PKWU",materi:"Wirausaha Kerajinan dengan Inspirasi Budaya Non Benda",kelas:"X / Fase E",skor:Math.round(quizScore),dekomposisi:Number(pillarScores["Budaya & Ide"]||0),pola:Number(pillarScores["Riset Pasar"]||0),abstraksi:Number(pillarScores["Produksi"]||0),algoritma:Number(pillarScores["Keuangan & Bisnis"]||0),waktu:new Date().toISOString(),waktuTampil:new Date().toLocaleString("id-ID")};
             const key="bk_quiz_results_v1"; let results=[];
             try{results=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(results))results=[];}catch(e){results=[];}
             results=results.filter(x=>String(x.nis||"")!==result.nis); results.push(result);
@@ -1463,16 +1125,7 @@ async function saveQuizResultOnline(result) {
             clearQuizDeadline();
             document.getElementById('quiz-question-box').classList.add('hidden'); document.getElementById('quiz-action-bar').classList.add('hidden'); document.getElementById('quiz-result-dashboard').classList.remove('hidden');
             document.getElementById('final-score-val').innerText=Math.round(quizScore);
-            saveQuizResultForTeacher().then(status=>{
-                const note=document.getElementById('teacher-source-note');
-                if(status && status.ok) {
-                    note.innerHTML="<span class='text-emerald-400 font-semibold'>● Nilai berhasil tersimpan ke database online.</span> Guru dapat melihat nilai ini dari dashboard pada perangkat lain.";
-                } else if(status && status.local) {
-                    const detail = status.reason ? ` <span class='block mt-1 text-xs text-red-300'>Detail: ${String(status.reason).replace(/</g,'&lt;')}</span>` : "";
-                    note.innerHTML="<span class='text-amber-400 font-semibold'>● Nilai tersimpan di perangkat ini, tetapi belum masuk database online.</span>" + detail;
-                }
-            }).catch(()=>{});
-            if(currentUser){document.getElementById('quiz-student-name').innerText=currentUser.nama;document.getElementById('quiz-student-nis').innerText=currentUser.nis;}
+            saveQuizResultForTeacher().catch(()=>{});
             let predikat=quizScore>=70?"TUNTAS":"TIDAK TUNTAS";
             document.getElementById('final-status-text').innerHTML=`Status: <strong>${predikat}</strong>`;
             document.getElementById('score-dekomposisi').innerText=`${pillarScores["Budaya & Ide"]} poin`;
@@ -1481,19 +1134,13 @@ async function saveQuizResultOnline(result) {
             document.getElementById('score-algoritma').innerText=`${pillarScores["Keuangan & Bisnis"]} poin`;
         }
 
-        /* ===================================================
-           4. CERTIFICATE GENERATION & JPEG DOWNLOAD LOGIC
-           =================================================== */
         function openCertificateModal() {
-            const modal = document.getElementById('certificate-modal');
-            modal.classList.remove('hidden');
+            document.getElementById('certificate-modal').classList.remove('hidden');
             drawCertificateCanvas();
         }
-
         function closeCertificateModal() {
             document.getElementById('certificate-modal').classList.add('hidden');
         }
-
         function drawCertificateCanvas() {
             const canvas = document.getElementById('cert-canvas');
             const ctx = canvas.getContext('2d');
@@ -1501,112 +1148,25 @@ async function saveQuizResultOnline(result) {
             const studentName = currentUser ? currentUser.nama : "Siswa";
             const studentNis = currentUser ? currentUser.nis : "-";
             const score = quizScore;
-            const date = new Date().toLocaleDateString("id-ID", {day:"2-digit", month:"long", year:"numeric"});
-            const predikat = score >= 70 ? "TUNTAS" : "TIDAK TUNTAS";
-
-            // Background
             ctx.clearRect(0, 0, w, h);
             ctx.fillStyle = "#fffdf7";
             ctx.fillRect(0, 0, w, h);
-
-            // Decorative borders
-            ctx.strokeStyle = "#d97706";
-            ctx.lineWidth = 12;
-            ctx.strokeRect(24, 24, w-48, h-48);
-            ctx.strokeStyle = "#fbbf24";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(45, 45, w-90, h-90);
-
-            // Header
+            ctx.strokeStyle = "#d97706"; ctx.lineWidth = 12; ctx.strokeRect(24, 24, w-48, h-48);
             ctx.textAlign = "center";
-            ctx.fillStyle = "#92400e";
-            ctx.font = "bold 30px Arial, sans-serif";
-            ctx.fillText("SERTIFIKAT APRESIASI", w/2, 125);
-            ctx.fillStyle = "#0f172a";
-            ctx.font = "bold 52px Georgia, serif";
-            ctx.fillText("Penyelesaian Evaluasi PKWU", w/2, 185);
-
-            ctx.fillStyle = "#64748b";
-            ctx.font = "20px Arial, sans-serif";
-            ctx.fillText("Wirausaha Kerajinan dengan Inspirasi Budaya Nonbenda", w/2, 225);
-
-            // Student name
-            ctx.fillStyle = "#0f172a";
-            ctx.font = "bold 42px Arial, sans-serif";
-            ctx.fillText(studentName, w/2, 330);
-            ctx.fillStyle = "#64748b";
-            ctx.font = "20px Arial, sans-serif";
-            ctx.fillText("NISN: " + studentNis, w/2, 370);
-
-            // Score box
-            ctx.fillStyle = "#fffbeb";
-            ctx.strokeStyle = "#f59e0b";
-            ctx.lineWidth = 2;
-            ctx.roundRect(390, 415, 420, 135, 18);
-            ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#b45309";
-            ctx.font = "bold 58px Arial, sans-serif";
-            ctx.fillText(score + "/100", w/2, 480);
-            ctx.fillStyle = "#475569";
-            ctx.font = "bold 20px Arial, sans-serif";
-            ctx.fillText("Predikat: " + predikat, w/2, 520);
-
-            ctx.fillStyle = "#475569";
-            ctx.font = "18px Arial, sans-serif";
-            ctx.font = "bold 20px Arial, sans-serif";
-            ctx.fillText("Keterangan:", w/2, 590);
-            ctx.font = "18px Arial, sans-serif";
-            ctx.fillText("Telah menyelesaikan Ulangan Harian PKWU dengan materi yang dipelajari.", w/2, 625);
-            ctx.fillText("Nunukan, " + date, w/2, 655);
-
-            // Teacher signature
-            ctx.textAlign = "left";
-            ctx.fillStyle = "#0f172a";
-            ctx.font = "bold 25px Arial, sans-serif";
-            ctx.fillText("Abdul Rahman", 870, 755);
-            ctx.beginPath();
-            ctx.moveTo(850, 765); ctx.lineTo(1080, 765);
-            ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 1.5; ctx.stroke();
-            ctx.fillStyle = "#64748b";
-            ctx.font = "14px Arial, sans-serif";
-            ctx.fillText("Guru Pengampu PKWU", 890, 790);
+            ctx.fillStyle = "#92400e"; ctx.font = "bold 30px Arial"; ctx.fillText("SERTIFIKAT APRESIASI", w/2, 125);
+            ctx.fillStyle = "#0f172a"; ctx.font = "bold 52px Georgia"; ctx.fillText("Penyelesaian Evaluasi PKWU", w/2, 185);
+            ctx.fillStyle = "#0f172a"; ctx.font = "bold 42px Arial"; ctx.fillText(studentName, w/2, 330);
+            ctx.fillStyle = "#64748b"; ctx.font = "20px Arial"; ctx.fillText("NISN: " + studentNis, w/2, 370);
         }
-
-        async function shareCertificate() {
-            const canvas = document.getElementById('cert-canvas');
-            canvas.toBlob(async (blob) => {
-                if (!blob) return;
-                const studentName = currentUser ? currentUser.nama.replace(/[^a-zA-Z0-9]/g, "_") : "Siswa";
-                const file = new File([blob], `Sertifikat_PKWU_${studentName}.jpg`, {type:"image/jpeg"});
-                try {
-                    if (navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))) {
-                        await navigator.share({title:"Sertifikat PKWU", text:"Sertifikat penyelesaian evaluasi PKWU", files:[file]});
-                    } else {
-                        downloadCertificateJPEG();
-                    }
-                } catch (e) {
-                    if (e && e.name !== "AbortError") downloadCertificateJPEG();
-                }
-            }, "image/jpeg", 0.95);
-        }
-
         function downloadCertificateJPEG() {
             const canvas = document.getElementById('cert-canvas');
-            const studentNis = currentUser ? currentUser.nis : "Siswa";
-            const studentName = currentUser ? currentUser.nama.replace(/[^a-zA-Z0-9]/g, "_") : "Siswa";
             const link = document.createElement('a');
-            link.download = `Sertifikat_PKWU_${studentName}_${studentNis}.jpg`;
+            link.download = `Sertifikat_PKWU.jpg`;
             link.href = canvas.toDataURL('image/jpeg', 0.95);
             link.click();
         }
+        function restartQuiz() { initQuiz(); startQuizTimer(); }
 
-        function restartQuiz() {
-            initQuiz();
-            startQuizTimer();
-        }
-
-        // Inisialisasi aman: konten pembelajaran lama dapat tidak tersedia.
-        // Jangan panggil fungsi bagian materi/simulasi karena bukan bagian dari CBT.
         window.addEventListener('DOMContentLoaded', function() {
             setupMultiTabGuard();
             setupBrowserLeaveGuard();
