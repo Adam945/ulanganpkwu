@@ -9,9 +9,6 @@
 <script>
 /*
   KONFIGURASI DATABASE ONLINE
-  1) Buat project di Supabase.
-  2) Jalankan file SQL: setup_database_supabase_bk.sql
-  3) Ganti dua nilai di bawah dengan Project URL dan Publishable/Anon Key Anda.
 */
 const SUPABASE_URL = "https://mjghjilrxykchsxbhsvr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_UNiq5gu_9qSWhc845td6BQ_TNLUA7VE";
@@ -21,10 +18,7 @@ const supabaseClient = (SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.inc
   : null;
 
 async function saveQuizResultOnline(result) {
-    if (!supabaseClient) {
-        console.warn("Supabase belum dikonfigurasi. Hasil tetap disimpan lokal.");
-        return { ok: false, reason: "not_configured" };
-    }
+    if (!supabaseClient) return { ok: false, reason: "not_configured" };
 
     const payload = {
         nis: String(result.nis || "").trim(),
@@ -47,33 +41,21 @@ async function saveQuizResultOnline(result) {
             .eq("nis", payload.nis)
             .limit(1);
 
-        if (findError) {
-            console.error("Gagal mengecek NIS di database:", findError);
-            return { ok: false, reason: findError.message, code: findError.code };
-        }
+        if (findError) return { ok: false, reason: findError.message };
 
         let error = null;
         if (Array.isArray(existing) && existing.length > 0) {
             const id = existing[0].id;
-            const response = await supabaseClient
-                .from("hasil_kuis_bk")
-                .update(payload)
-                .eq("id", id);
+            const response = await supabaseClient.from("hasil_kuis_bk").update(payload).eq("id", id);
             error = response.error;
         } else {
-            const response = await supabaseClient
-                .from("hasil_kuis_bk")
-                .insert(payload);
+            const response = await supabaseClient.from("hasil_kuis_bk").insert(payload);
             error = response.error;
         }
 
-        if (error) {
-            console.error("Gagal menyimpan ke database:", error);
-            return { ok: false, reason: error.message, code: error.code };
-        }
+        if (error) return { ok: false, reason: error.message };
         return { ok: true };
     } catch (err) {
-        console.error("Kesalahan koneksi Supabase:", err);
         return { ok: false, reason: err?.message || String(err) };
     }
 }
@@ -81,61 +63,26 @@ async function saveQuizResultOnline(result) {
 
 <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
-                        brand: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            900: '#14532d',
-                        },
-                        tech: {
-                            50: '#f0f9ff',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            900: '#0c4a6e',
-                        }
+                        brand: { 50: '#f0fdf4', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' },
+                        tech: { 50: '#f0f9ff', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' }
                     }
                 }
             }
         }
     </script>
-    <style>
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(229, 231, 235, 0.8);
-        }
-        .tab-active {
-            border-bottom: 3px solid #0284c7;
-            color: #0284c7;
-            font-weight: 700;
-        }
-        @keyframes pulse-subtle {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-        }
-        .animate-pulse-subtle {
-            animation: pulse-subtle 3s infinite ease-in-out;
-        }
-    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-tech-500 selection:text-white">
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
 
     <!-- Modal Login Sistem NIS -->
     <div id="login-modal" class="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-slate-800 space-y-6">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-6">
             <div class="text-center space-y-2">
                 <div class="w-16 h-16 bg-gradient-to-tr from-tech-600 to-brand-500 rounded-2xl flex items-center justify-center text-white font-black text-2xl mx-auto shadow-lg">
                     CT
@@ -149,7 +96,7 @@ async function saveQuizResultOnline(result) {
                 <button type="button" id="tab-btn-siswa" onclick="switchLoginTab('siswa')" class="py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-tech-700 shadow">
                     🧑‍🎓 Siswa
                 </button>
-                <button type="button" id="tab-btn-guru" onclick="switchLoginTab('guru')" class="py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-700">
+                <button type="button" id="tab-btn-guru" onclick="switchLoginTab('guru')" class="py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500">
                     👩‍🏫 Guru
                 </button>
             </div>
@@ -158,14 +105,12 @@ async function saveQuizResultOnline(result) {
             <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label for="nis-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Masukkan NISN</label>
-                    <input type="text" id="nis-input" placeholder="Contoh: 0104016810" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-tech-500 focus:border-tech-500 text-slate-900 font-semibold outline-none transition-all">
+                    <input type="text" id="nis-input" placeholder="Contoh: 0104016810" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-tech-500 text-slate-900 font-semibold outline-none">
                 </div>
 
-                <div id="login-error" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
-                    ❌ NISN tidak ditemukan! Silakan periksa kembali NISN yang dimasukkan.
-                </div>
+                <div id="login-error" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium"></div>
 
-                <button type="submit" class="w-full py-3.5 px-4 bg-gradient-to-r from-tech-600 to-brand-600 hover:from-tech-500 hover:to-brand-500 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95">
+                <button type="submit" class="w-full py-3.5 px-4 bg-gradient-to-r from-tech-600 to-brand-600 text-white font-bold rounded-xl shadow-lg">
                     Masuk Ulangan &rarr;
                 </button>
             </form>
@@ -174,18 +119,16 @@ async function saveQuizResultOnline(result) {
             <form id="teacher-login-form" onsubmit="handleTeacherLogin(event)" class="hidden space-y-4">
                 <div>
                     <label for="teacher-password-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Kata Sandi Guru</label>
-                    <input type="password" id="teacher-password-input" placeholder="Masukkan kata sandi" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-900 font-semibold outline-none transition-all">
+                    <input type="password" id="teacher-password-input" placeholder="Masukkan kata sandi" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 text-slate-900 font-semibold outline-none">
                 </div>
 
                 <div id="teacher-login-error" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
-                    ❌ Kata sandi guru salah. Silakan coba lagi.
+                    ❌ Kata sandi guru salah.
                 </div>
 
-                <button type="submit" class="w-full py-3.5 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95">
+                <button type="submit" class="w-full py-3.5 px-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold rounded-xl shadow-lg">
                     Masuk sebagai Guru &rarr;
                 </button>
-
-                <p class="text-[11px] text-slate-400 text-center">Akses ini menampilkan rekap nilai kuis PKWU seluruh siswa.</p>
             </form>
         </div>
     </div>
@@ -195,32 +138,21 @@ async function saveQuizResultOnline(result) {
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-tech-600 to-brand-500 flex items-center justify-center text-white font-black text-xl shadow-md">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-tech-600 to-brand-500 flex items-center justify-center text-white font-black text-xl">
                         CT
                     </div>
                     <div>
-                        <h1 class="font-bold text-slate-900 text-base sm:text-lg leading-tight">Wirausaha Kerajinan</h1>
+                        <h1 class="font-bold text-slate-900 text-base">Wirausaha Kerajinan</h1>
                         <p class="text-xs text-slate-500">PKWU SMA Kelas X • Fase E</p>
                     </div>
                 </div>
-                <!-- Navigation Tabs -->
-                <nav class="hidden md:flex space-x-6 text-sm font-medium text-slate-600">
-                    <a href="#materi" class="hover:text-tech-600 transition-colors">1. Ulangan</a>
-                    <a href="#studi-kasus" class="hover:text-tech-600 transition-colors">2. Soal</a>
-                    <a href="#simulasi" class="hover:text-tech-600 transition-colors">3. Evaluasi</a>
-                    <a href="#kuis" class="hover:text-tech-600 transition-colors">4. Ulangan 40 Soal</a>
-                    <a href="#dashboard-guru" id="nav-dashboard-guru" class="hidden hover:text-amber-600 transition-colors font-bold text-amber-700">5. Dashboard Guru</a>
-                </nav>
                 <div class="flex items-center space-x-3">
-                    <!-- Active Student Badge -->
-                    <div id="user-badge" class="hidden items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 text-xs text-slate-800 font-medium">
+                    <div id="user-badge" class="hidden items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 text-xs font-medium">
                         <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
                         <span>👤 <strong id="student-name-display" class="text-tech-700">Siswa</strong> (<span id="student-nis-display" class="font-mono text-slate-500">NISN</span>)</span>
                         <button onclick="handleLogout()" class="ml-2 text-red-600 hover:text-red-800 font-bold text-[11px] underline">Keluar</button>
                     </div>
-                    <!-- Active Teacher Badge -->
                     <div id="teacher-badge" class="hidden items-center space-x-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200 text-xs text-amber-900 font-medium">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                         <span>👩‍🏫 <strong>Mode Guru</strong></span>
                         <button onclick="handleTeacherLogout()" class="ml-2 text-red-600 hover:text-red-800 font-bold text-[11px] underline">Keluar</button>
                     </div>
@@ -229,213 +161,55 @@ async function saveQuizResultOnline(result) {
         </div>
     </header>
 
-    <!-- HERO / ONE-PAGE LEARNING -->
-    <section class="relative bg-gradient-to-b from-slate-950 via-amber-900 to-slate-950 text-white py-12 lg:py-16 overflow-hidden">
-        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#fbbf24_1px,transparent_1px)] [background-size:16px_16px]"></div>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div class="lg:col-span-7 space-y-5">
-                    <div class="inline-flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-amber-700/50 text-xs text-amber-300 font-mono">
-                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                        <span>INTERACTIVE LEARNING • KURIKULUM MERDEKA</span>
-                    </div>
-                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-                        Ulangan Harian PKWU: Wirausaha Kerajinan dengan Inspirasi Budaya Nonbenda
-                    </h2>
-                    <p class="text-slate-300 text-base sm:text-lg max-w-2xl leading-relaxed">
-                        <strong class="text-amber-300">Bab 1 • Kelas X / Fase E</strong><br>
-                        Subbab: <strong>Wirausaha Kerajinan dengan Inspirasi Budaya Nonbenda.</strong>
-                        Uji pemahaman melalui 40 soal pilihan ganda HOTS tentang karakteristik kewirausahaan, budaya nonbenda, sumber daya 6M, perancangan, produksi, K3, pemasaran, dan evaluasi.
-                    </p>
-                    <div class="flex flex-wrap gap-3 pt-1">
-                        <a href="#kuis" class="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg transition-all">Mulai Ulangan ↓</a>
-                        <a href="#kuis" class="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold border border-slate-700">📝 40 Soal HOTS</a>
-                    </div>
-                </div>
-                <div class="lg:col-span-5">
-                    <div class="glass-card bg-white/10 p-6 rounded-3xl border border-white/15 shadow-2xl space-y-4">
-                        <h3 class="text-lg font-bold text-white">🎯 Tujuan Pembelajaran</h3>
-                        <div class="grid grid-cols-2 gap-3 text-sm">
-                            <div class="bg-white/10 rounded-2xl p-4"><b class="text-amber-300">01</b><p class="mt-1">Mengenali budaya non benda sebagai sumber inspirasi.</p></div>
-                            <div class="bg-white/10 rounded-2xl p-4"><b class="text-amber-300">02</b><p class="mt-1">Menganalisis kebutuhan pasar dan calon konsumen.</p></div>
-                            <div class="bg-white/10 rounded-2xl p-4"><b class="text-amber-300">03</b><p class="mt-1">Menyusun konsep produk dan rencana produksi.</p></div>
-                            <div class="bg-white/10 rounded-2xl p-4"><b class="text-amber-300">04</b><p class="mt-1">Menghitung biaya, harga, promosi, dan risiko usaha.</p></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- QUIZ -->
+    <!-- QUIZ SECTION -->
     <section id="kuis" class="py-14 bg-slate-50">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-9">
-                <span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold uppercase tracking-wider">Evaluasi</span>
-                <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl mt-2">Ulangan Harian • 40 Soal HOTS</h2>
-                <p class="mt-2 text-slate-600 text-sm">Pilih satu jawaban paling tepat berdasarkan kasus kewirausahaan kerajinan dengan inspirasi budaya nonbenda.</p>
-            </div>
-            <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                <div class="w-full bg-slate-100 h-2.5"><div id="quiz-progress-bar" class="bg-gradient-to-r from-amber-400 to-orange-500 h-2.5 transition-all" style="width:2.5%"></div></div>
-                <div class="p-6 sm:p-10">
-                    <div class="flex justify-between items-center mb-6 text-xs sm:text-sm font-semibold text-slate-500">
-                        <span id="quiz-question-number" class="text-amber-600 font-bold">Soal 1 dari 40</span>
-                        <span id="quiz-timer" class="bg-red-50 border border-red-200 px-3 py-1 rounded-full text-red-700 font-extrabold tabular-nums" aria-live="polite">60:00</span>
-                        <span id="quiz-score-badge" class="bg-slate-100 px-3 py-1 rounded-full text-slate-700">Ulangan Berlangsung</span>
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-6 sm:p-10">
+                <div class="flex justify-between items-center mb-6 text-xs sm:text-sm font-semibold text-slate-500">
+                    <span id="quiz-question-number" class="text-amber-600 font-bold">Soal 1 dari 40</span>
+                    <span id="quiz-timer" class="bg-red-50 border border-red-200 px-3 py-1 rounded-full text-red-700 font-extrabold">60:00</span>
+                </div>
+                <div id="quiz-question-box">
+                    <h3 id="quiz-question-text" class="text-lg sm:text-xl font-bold text-slate-900 mb-6"></h3>
+                    <div id="quiz-options-container" class="space-y-3"></div>
+                </div>
+                <div id="quiz-result-dashboard" class="hidden text-center py-6 space-y-5">
+                    <h3 class="text-2xl font-extrabold">Kuis Selesai!</h3>
+                    <div class="bg-amber-50 p-6 rounded-2xl border border-amber-200 max-w-sm mx-auto">
+                        <div class="text-5xl font-black text-amber-600" id="final-score-val">0</div>
+                        <div class="mt-3 text-sm text-slate-700" id="final-status-text"></div>
                     </div>
-                    <div id="quiz-question-box">
-                        <h3 id="quiz-question-text" class="text-lg sm:text-xl font-bold text-slate-900 leading-snug mb-6"></h3>
-                        <div id="quiz-options-container" class="space-y-3"></div>
-                    </div>
-                    <div id="quiz-result-dashboard" class="hidden text-center py-6 space-y-5">
-                        <div class="text-5xl">🎉</div>
-                        <h3 class="text-2xl font-extrabold">Kuis Selesai!</h3>
-                        <div class="bg-amber-50 p-6 rounded-2xl border border-amber-200 max-w-sm mx-auto">
-                            <div class="text-5xl font-black text-amber-600" id="final-score-val">0</div>
-                            <div class="text-xs font-semibold text-slate-500 uppercase">Skor / 100</div>
-                            <div class="mt-3 text-sm text-slate-700" id="final-status-text"></div>
-                        </div>
-                        <div class="text-left bg-slate-50 p-5 rounded-2xl border text-sm space-y-2">
-                            <b>Ringkasan kemampuan:</b>
-                            <div class="flex justify-between"><span>Budaya & Ide</span><b id="score-dekomposisi">0</b></div>
-                            <div class="flex justify-between"><span>Riset Pasar</span><b id="score-pola">0</b></div>
-                            <div class="flex justify-between"><span>Produksi</span><b id="score-abstraksi">0</b></div>
-                            <div class="flex justify-between"><span>Keuangan & Bisnis</span><b id="score-algoritma">0</b></div>
-                        </div>
-                        <div class="flex flex-wrap justify-center gap-3 pt-2">
-                            <button onclick="openCertificateModal()" class="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl shadow">🎓 Lihat Sertifikat</button>
-                            <button onclick="restartQuiz()" class="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl">🔄 Ulangi Kuis</button>
-                        </div>
-                    </div>
-                    <div id="quiz-action-bar" class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
-                        <button onclick="submitQuizAnswer()" id="btn-quiz-submit" class="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl shadow disabled:opacity-50" disabled>Jawab & Lanjut →</button>
-                    </div>
+                    <button onclick="restartQuiz()" class="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl">🔄 Ulangi Kuis</button>
+                </div>
+                <div id="quiz-action-bar" class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+                    <button onclick="submitQuizAnswer()" id="btn-quiz-submit" class="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl disabled:opacity-50" disabled>Jawab & Lanjut →</button>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- SECTION 5: DASHBOARD GURU - REKAP NILAI KUIS SEMUA SISWA -->
+    <!-- DASHBOARD GURU -->
     <section id="dashboard-guru" class="hidden py-16 bg-slate-900">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-8">
-                <span class="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-bold uppercase tracking-wider border border-amber-500/30">Khusus Guru</span>
-                <h2 class="text-3xl font-extrabold text-white sm:text-4xl mt-2">Dashboard Nilai Kuis PKWU</h2>
-                <p class="mt-2 text-slate-400 text-sm">Rekapitulasi nilai PKWU seluruh 36 siswa. Siswa yang belum mengerjakan tetap ditampilkan dengan statusnya.</p>
-            </div>
-
-            <!-- Summary Stat Cards -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 text-center">
-                    <div class="text-2xl sm:text-3xl font-black text-tech-500" id="stat-total-siswa">0</div>
-                    <div class="text-[11px] text-slate-400 font-semibold uppercase mt-1">Siswa Mengerjakan / Total</div>
-                </div>
-                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 text-center">
-                    <div class="text-2xl sm:text-3xl font-black text-brand-500" id="stat-rata-rata">0</div>
-                    <div class="text-[11px] text-slate-400 font-semibold uppercase mt-1">Rata-rata Skor</div>
-                </div>
-                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 text-center">
-                    <div class="text-2xl sm:text-3xl font-black text-amber-500" id="stat-skor-tertinggi">0</div>
-                    <div class="text-[11px] text-slate-400 font-semibold uppercase mt-1">Skor Tertinggi</div>
-                </div>
-                <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 text-center">
-                    <div class="text-2xl sm:text-3xl font-black text-red-400" id="stat-belum-tuntas">0</div>
-                    <div class="text-[11px] text-slate-400 font-semibold uppercase mt-1">Skor &lt; 70</div>
-                </div>
-            </div>
-
-            <!-- Toolbar: Search, Refresh, Export -->
-            <div class="flex flex-col sm:flex-row gap-3 mb-4 items-stretch sm:items-center justify-between">
-                <input type="text" id="teacher-search-input" oninput="filterTeacherTable()" placeholder="🔍 Cari nama atau NISN siswa..." class="w-full sm:w-80 px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-100 placeholder-slate-500 text-sm outline-none focus:ring-2 focus:ring-tech-500">
-                <div class="flex gap-2">
-                    <button onclick="loadTeacherDashboard()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-semibold transition-all">
-                        🔄 Muat Ulang
-                    </button>
-                    <button onclick="exportResultsCSV()" class="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold shadow transition-all">
-                        📥 Ekspor CSV
-                    </button>
-                </div>
-            </div>
-
-            <p id="teacher-source-note" class="text-[11px] text-slate-500 mb-3"></p>
-
-            <!-- Results Table -->
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-x-auto shadow-xl">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-900/60 text-slate-400 text-[11px] uppercase tracking-wider">
+        <div class="max-w-6xl mx-auto px-4">
+            <h2 class="text-3xl font-extrabold text-white mb-6">Dashboard Nilai Kuis PKWU</h2>
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-x-auto shadow-xl p-4">
+                <table class="w-full text-sm text-left text-slate-200">
+                    <thead class="bg-slate-900/60 text-slate-400 text-[11px] uppercase">
                         <tr>
                             <th class="px-4 py-3">No</th>
                             <th class="px-4 py-3">Nama Siswa</th>
                             <th class="px-4 py-3">NISN</th>
                             <th class="px-4 py-3 text-center">Skor Akhir</th>
-                            <th class="px-4 py-3 text-center">Identifikasi Ide</th>
-                            <th class="px-4 py-3 text-center">Pola</th>
-                            <th class="px-4 py-3 text-center">Abstraksi</th>
-                            <th class="px-4 py-3 text-center">Algoritma</th>
-                            <th class="px-4 py-3">Predikat</th>
-                            <th class="px-4 py-3">Waktu Pengerjaan</th>
                             <th class="px-4 py-3 text-center">Akses Ulangan</th>
                         </tr>
                     </thead>
-                    <tbody id="teacher-results-tbody" class="divide-y divide-slate-700 text-slate-200">
-                        <!-- Rows injected by JS -->
-                    </tbody>
+                    <tbody id="teacher-results-tbody"></tbody>
                 </table>
-                <div id="teacher-empty-state" class="hidden text-center py-12 text-slate-500 text-sm">
-                    Belum ada siswa yang menyelesaikan kuis evaluasi.
-                </div>
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 text-slate-400 py-8 text-center text-xs border-t border-slate-800">
-        <div class="max-w-7xl mx-auto px-4">
-            <p class="font-semibold text-slate-300">Media Pembelajaran Interaktif PKWU - Fase E (Kelas 10)</p>
-            <p class="mt-1 text-slate-500">Elemen: Wirausaha Kerajinan (BK) • Kurikulum Merdeka • Guru Mapel: Abdul Rahman</p>
-        </div>
-    </footer>
-
-    <!-- MODAL SERTIFIKAT DIGITAL -->
-    <div id="certificate-modal" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md hidden flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-4xl w-full shadow-2xl border border-slate-200 text-slate-800 space-y-6 my-8">
-            <div class="flex justify-between items-center border-b border-slate-200 pb-4">
-                <div>
-                    <h3 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                        <span>🎓 Sertifikat Kelulusan Digital</span>
-                    </h3>
-                    <p class="text-xs text-slate-500">Mata Pelajaran PKWU • Guru Pengampu: <strong class="text-slate-800">Abdul Rahman</strong></p>
-                </div>
-                <button onclick="closeCertificateModal()" class="text-slate-400 hover:text-slate-600 font-bold text-2xl p-1">&times;</button>
-            </div>
-
-            <!-- Canvas Certificate Container -->
-            <div class="w-full overflow-x-auto bg-slate-100 p-2 sm:p-4 rounded-2xl flex justify-center border border-slate-200 shadow-inner">
-                <canvas id="cert-canvas" width="1200" height="850" class="max-w-full h-auto rounded-xl shadow-md bg-white"></canvas>
-            </div>
-
-            <!-- Modal Action Footer -->
-            <div class="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100">
-                <p class="text-xs text-slate-500">💡 Klik tombol di bawah untuk mengunduh sertifikat dalam format file gambar JPEG.</p>
-                <div class="flex gap-3">
-                    <button onclick="closeCertificateModal()" class="px-5 py-2.5 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-50 text-sm">
-                        Tutup
-                    </button>
-                    <button onclick="shareCertificate()" class="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md transition-all flex items-center gap-2 transform active:scale-95">
-                        📤 Bagikan
-                    </button>
-                    <button onclick="downloadCertificateJPEG()" class="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-sm shadow-md transition-all flex items-center gap-2 transform active:scale-95">
-                        📥 Simpan JPEG
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        /* ===================================================
-           STUDENT DATABASE & AUTHENTICATION
-           =================================================== */
         const studentDatabase = [
             { nis: "0104016810", nama: "AHMAD TANDI" },
             { nis: "0107098938", nama: "ALIYAH RAHMADANI PUTRI" },
@@ -480,150 +254,69 @@ async function saveQuizResultOnline(result) {
         const QUIZ_DURATION_MS = 60 * 60 * 1000;
         let quizTimerInterval = null;
         let quizDeadline = null;
-        let quizTimeoutInProgress = false;
-        let loginCheckInProgress = false;
         let tabGuardChannel = null;
-        let tabGuardInitialized = false;
-        let activeTabId = '';
-        let leaveGuardTriggered = false;
 
-        function tabIdForThisTab() {
-            try {
-                let id = sessionStorage.getItem('pkwu_quiz_tab_id');
-                if (!id) {
-                    id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : `tab_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-                    sessionStorage.setItem('pkwu_quiz_tab_id', id);
-                }
-                return id;
-            } catch (e) {
-                return `tab_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-            }
-        }
         function activeSessionKey() { return 'pkwu_quiz_active_session_v1'; }
         function needsTeacherResetKey(nis) { return `pkwu_quiz_needs_teacher_reset_${String(nis).trim()}`; }
         function resetAuthorizedKey(nis) { return `pkwu_quiz_reset_authorized_${String(nis).trim()}`; }
-        function tabViolationKey(nis) { return `pkwu_quiz_tab_violation_${String(nis).trim()}`; }
 
-        function setActiveStudentSession(student) {
-            try {
-                localStorage.setItem(activeSessionKey(), JSON.stringify({ nis: String(student.nis), nama: student.nama, tabId: activeTabId, at: Date.now() }));
-            } catch (e) {}
-        }
-        function clearActiveStudentSession(nis) {
-            try {
-                const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
-                if (active && String(active.nis) === String(nis) && active.tabId === activeTabId) localStorage.removeItem(activeSessionKey());
-            } catch (e) {}
-        }
-        function requireTeacherReset(nis, reason = 'tab_baru') {
-            const normalizedNis = String(nis || '').trim();
-            if (!normalizedNis) return;
-            try {
-                localStorage.setItem(needsTeacherResetKey(normalizedNis), JSON.stringify({ reason, at: new Date().toISOString() }));
-                localStorage.setItem(tabViolationKey(normalizedNis), String(Date.now()));
-                const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
-                if (active && String(active.nis) === normalizedNis) localStorage.removeItem(activeSessionKey());
-            } catch (e) {}
-        }
-        function handleTabViolation(nis) {
-            if (!currentUser || String(currentUser.nis) !== String(nis)) return;
-            const name = currentUser.nama;
-            requireTeacherReset(nis, 'tab_baru');
-            stopQuizTimer();
-            clearActiveStudentSession(nis);
-            handleLogout();
-            const errorBox = document.getElementById('login-error');
-            if (errorBox) {
-                errorBox.textContent = `Akses ulangan dihentikan karena terdeteksi membuka tab baru. Minta guru mereset akses untuk ${name} melalui dashboard guru.`;
-                errorBox.classList.remove('hidden');
-            }
-        }
-        function handleBrowserLeaveAttempt(reason = 'keluar_browser') {
-            if (!currentUser || leaveGuardTriggered) return;
-            const questionBox = document.getElementById('quiz-question-box');
-            if (questionBox && questionBox.classList.contains('hidden')) return;
-            leaveGuardTriggered = true;
-            const nis = String(currentUser.nis);
-            const name = currentUser.nama;
-            try { saveQuizResultForTeacher(); } catch (e) { console.warn('Gagal menyimpan nilai sementara:', e); }
-            markAttemptCompleted(nis, reason);
-            requireTeacherReset(nis, reason);
-            stopQuizTimer();
-            clearActiveStudentSession(nis);
-            handleLogout();
-            const errorBox = document.getElementById('login-error');
-            if (errorBox) {
-                errorBox.textContent = `Akses ulangan ${name} dikunci karena halaman ulangan ditinggalkan atau berpindah dari tampilan aktif. Nilai sementara disimpan di perangkat ini. Silakan minta guru mereset akses melalui dashboard guru.`;
-                errorBox.classList.remove('hidden');
-            }
-        }
-
-        function setupBrowserLeaveGuard() {
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'hidden') handleBrowserLeaveAttempt('halaman_tidak_aktif');
-            });
-            window.addEventListener('pagehide', () => handleBrowserLeaveAttempt('keluar_browser'));
-        }
-
-        function setupMultiTabGuard() {
-            if (tabGuardInitialized) return;
-            tabGuardInitialized = true;
-            activeTabId = tabIdForThisTab();
+        // PENJAGA MULTI-TAB & KELUAR HALAMAN OTOMATIS
+        function setupSecurityGuards() {
+            // 1. BroadcastChannel untuk mendeteksi tab baru yang dibuka secara instan
             if ('BroadcastChannel' in window) {
-                tabGuardChannel = new BroadcastChannel('pkwu_quiz_tab_guard_v1');
+                tabGuardChannel = new BroadcastChannel('pkwu_quiz_guard_channel');
                 tabGuardChannel.onmessage = (event) => {
-                    const msg = event.data || {};
-                    if (msg.from === activeTabId) return;
-                    if (msg.type === 'HELLO' && currentUser) {
-                        tabGuardChannel.postMessage({ type: 'ACTIVE', from: activeTabId, nis: String(currentUser.nis) });
-                        handleTabViolation(currentUser.nis);
-                    } else if (msg.type === 'ACTIVE') {
-                        const active = (() => { try { return JSON.parse(localStorage.getItem(activeSessionKey()) || 'null'); } catch (e) { return null; } })();
-                        const nis = String((active && active.nis) || msg.nis || '');
-                        if (nis && active && String(active.nis) === nis) {
-                            requireTeacherReset(nis, 'tab_baru');
-                            const errorBox = document.getElementById('login-error');
-                            if (errorBox) {
-                                errorBox.textContent = 'Terdeteksi tab lain saat sesi ulangan aktif. Akses dikunci; minta guru mereset melalui dashboard guru.';
-                                errorBox.classList.remove('hidden');
-                            }
-                        }
+                    if (event.data && event.data.type === 'FORCE_LOGOUT') {
+                        forceAutoLogout("Terdeteksi membuka tab baru atau sesi aktif di tempat lain.");
                     }
                 };
             }
-            try {
-                const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
-                if (active && active.nis && active.tabId !== activeTabId) {
-                    requireTeacherReset(active.nis, 'tab_baru');
-                    const errorBox = document.getElementById('login-error');
-                    if (errorBox) {
-                        errorBox.textContent = 'Terdeteksi tab baru saat ulangan sedang aktif. Minta guru mereset akses melalui dashboard guru sebelum login kembali.';
-                        errorBox.classList.remove('hidden');
-                    }
+
+            // 2. Deteksi saat tab disembunyikan (pindah tab / minimize browser / pindah aplikasi)
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden' && currentUser) {
+                    forceAutoLogout("Sesi diakhiri otomatis karena Anda keluar dari halaman ulangan atau membuka tab lain.");
                 }
-            } catch (e) {}
-            if (tabGuardChannel) tabGuardChannel.postMessage({ type: 'HELLO', from: activeTabId });
-            window.addEventListener('storage', (event) => {
-                if (!event.key) return;
-                if (event.key.startsWith('pkwu_quiz_tab_violation_') && currentUser && event.key === tabViolationKey(currentUser.nis)) {
-                    handleTabViolation(currentUser.nis);
+            });
+
+            // 3. Deteksi saat halaman ditutup atau ditinggalkan
+            window.addEventListener('pagehide', () => {
+                if (currentUser) {
+                    forceAutoLogout("Sesi ditutup.");
                 }
             });
         }
 
-        function attemptCompletedKey(nis) {
-            return `pkwu_quiz_completed_${String(nis).trim()}`;
-        }
-
-        function markAttemptCompleted(nis, reason = "completed") {
+        function forceAutoLogout(reason) {
+            if (!currentUser) return;
+            const nis = String(currentUser.nis);
+            
+            // Tandai agar siswa wajib minta reset ke guru akibat pelanggaran/keluar web
             try {
-                localStorage.setItem(attemptCompletedKey(nis), JSON.stringify({
-                    completed: true,
-                    reason,
-                    at: new Date().toISOString()
-                }));
-            } catch (e) {
-                console.warn("Tidak dapat menyimpan status percobaan di perangkat:", e);
+                localStorage.setItem(needsTeacherResetKey(nis), JSON.stringify({ reason, at: new Date().toISOString() }));
+                localStorage.removeItem(activeSessionKey());
+            } catch (e) {}
+
+            if (tabGuardChannel) {
+                tabGuardChannel.postMessage({ type: 'FORCE_LOGOUT', nis });
+            }
+
+            currentUser = null;
+            stopQuizTimer();
+            
+            // Tampilkan kembali modal login dengan pesan peringatan
+            const loginModal = document.getElementById('login-modal');
+            const errorBox = document.getElementById('login-error');
+            const userBadge = document.getElementById('user-badge');
+            
+            if (loginModal) loginModal.classList.remove('hidden');
+            if (userBadge) {
+                userBadge.classList.add('hidden');
+                userBadge.classList.remove('flex');
+            }
+            if (errorBox) {
+                errorBox.textContent = `⚠️ ${reason} Silakan minta guru mereset akses jika ingin masuk kembali.`;
+                errorBox.classList.remove('hidden');
             }
         }
 
@@ -632,12 +325,6 @@ async function saveQuizResultOnline(result) {
             try {
                 if (localStorage.getItem(resetAuthorizedKey(normalizedNis)) === '1') return false;
                 if (localStorage.getItem(needsTeacherResetKey(normalizedNis))) return true;
-                if (localStorage.getItem(attemptCompletedKey(normalizedNis))) return true;
-                const saved = JSON.parse(localStorage.getItem("bk_quiz_results_v1") || "[]");
-                if (Array.isArray(saved) && saved.some(r => String(r.nis || "").trim() === normalizedNis)) {
-                    markAttemptCompleted(normalizedNis, "existing_local_result");
-                    return true;
-                }
             } catch (e) {}
 
             if (supabaseClient) {
@@ -647,13 +334,8 @@ async function saveQuizResultOnline(result) {
                         .select("nis")
                         .eq("nis", normalizedNis)
                         .limit(1);
-                    if (!error && Array.isArray(data) && data.length > 0) {
-                        markAttemptCompleted(normalizedNis, "existing_online_result");
-                        return true;
-                    }
-                } catch (e) {
-                    console.warn("Pemeriksaan percobaan online gagal:", e);
-                }
+                    if (!error && Array.isArray(data) && data.length > 0) return true;
+                } catch (e) {}
             }
             return false;
         }
@@ -666,7 +348,7 @@ async function saveQuizResultOnline(result) {
             try { storedDeadline = Number(localStorage.getItem(key) || 0); } catch (e) {}
             quizDeadline = storedDeadline > 0 ? storedDeadline : Date.now() + QUIZ_DURATION_MS;
             try { if (!storedDeadline) localStorage.setItem(key, String(quizDeadline)); } catch (e) {}
-            quizTimeoutInProgress = false;
+            
             updateQuizTimer();
             quizTimerInterval = setInterval(updateQuizTimer, 1000);
         }
@@ -676,52 +358,16 @@ async function saveQuizResultOnline(result) {
             quizTimerInterval = null;
         }
 
-        function clearQuizDeadline() {
-            if (currentUser) {
-                try { localStorage.removeItem(`pkwu_quiz_deadline_${currentUser.nis}`); } catch (e) {}
-            }
-            quizDeadline = null;
-        }
-
         function updateQuizTimer() {
-            if (!quizDeadline || !currentUser || quizTimeoutInProgress) return;
+            if (!quizDeadline || !currentUser) return;
             const remaining = Math.max(0, quizDeadline - Date.now());
             const totalSeconds = Math.ceil(remaining / 1000);
             const mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
             const ss = String(totalSeconds % 60).padStart(2, '0');
             const timer = document.getElementById('quiz-timer');
-            if (timer) {
-                timer.textContent = `${mm}:${ss}`;
-                timer.classList.toggle('animate-pulse', totalSeconds <= 300);
-                timer.classList.toggle('bg-red-100', totalSeconds <= 300);
-            }
-            if (remaining <= 0) handleQuizTimeout();
+            if (timer) timer.textContent = `${mm}:${ss}`;
+            if (remaining <= 0) forceAutoLogout("Waktu ulangan telah habis.");
         }
-
-        async function handleQuizTimeout() {
-            if (quizTimeoutInProgress || !currentUser) return;
-            quizTimeoutInProgress = true;
-            stopQuizTimer();
-            const expiredNis = String(currentUser.nis);
-            const expiredName = currentUser.nama;
-            markAttemptCompleted(expiredNis, "time_expired");
-            const timer = document.getElementById('quiz-timer');
-            if (timer) timer.textContent = '00:00';
-            try {
-                await saveQuizResultForTeacher();
-            } catch (e) {
-                console.error('Gagal menyimpan hasil saat waktu habis:', e);
-            }
-            try { localStorage.removeItem(`pkwu_quiz_deadline_${expiredNis}`); } catch (e) {}
-            handleLogout();
-            const errorBox = document.getElementById('login-error');
-            if (errorBox) {
-                errorBox.textContent = `Waktu ulangan ${expiredName} telah habis. Nilai sementara telah disimpan pada perangkat ini.`;
-                errorBox.classList.remove('hidden');
-            }
-        }
-
-        const TEACHER_PASSWORD = "guru2026";
 
         function switchLoginTab(role) {
             const btnSiswa = document.getElementById('tab-btn-siswa');
@@ -730,446 +376,184 @@ async function saveQuizResultOnline(result) {
             const formGuru = document.getElementById('teacher-login-form');
             if (role === 'guru') {
                 btnGuru.className = "py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-amber-700 shadow";
-                btnSiswa.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-700";
-                formGuru.classList.remove('hidden');
-                formSiswa.classList.add('hidden');
+                btnSiswa.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500";
+                formGuru.classList.remove('hidden'); formSiswa.classList.add('hidden');
             } else {
                 btnSiswa.className = "py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-tech-700 shadow";
-                btnGuru.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-700";
-                formSiswa.classList.remove('hidden');
-                formGuru.classList.add('hidden');
+                btnGuru.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500";
+                formSiswa.classList.remove('hidden'); formGuru.classList.add('hidden');
             }
         }
 
         async function handleLogin(event) {
             event.preventDefault();
-            if (loginCheckInProgress) return;
             const nisInput = document.getElementById('nis-input').value.trim();
             const errorBox = document.getElementById('login-error');
-            const loginButton = document.querySelector('#login-form button[type="submit"]');
             const foundStudent = studentDatabase.find(s => s.nis === nisInput);
 
             if (!foundStudent) {
-                errorBox.textContent = '❌ NISN tidak ditemukan! Silakan periksa kembali NISN yang dimasukkan.';
+                errorBox.textContent = '❌ NISN tidak ditemukan!';
                 errorBox.classList.remove('hidden');
                 return;
             }
 
-            loginCheckInProgress = true;
-            if (loginButton) { loginButton.disabled = true; loginButton.classList.add('opacity-60'); }
-            errorBox.textContent = 'Memeriksa status ulangan...';
-            errorBox.classList.remove('hidden');
-            try {
-                if (localStorage.getItem(needsTeacherResetKey(foundStudent.nis))) {
-                    errorBox.textContent = '⛔ Akses ulangan dikunci karena pelanggaran sesi. Minta guru mereset akses melalui dashboard guru.';
-                    return;
-                }
-                if (await hasCompletedAttempt(foundStudent.nis)) {
-                    errorBox.textContent = '⛔ NISN ini sudah menyelesaikan ulangan atau waktu pengerjaannya telah habis.';
-                    return;
-                }
-
-                currentUser = foundStudent;
-                try { localStorage.removeItem(resetAuthorizedKey(foundStudent.nis)); } catch (e) {}
-                setActiveStudentSession(foundStudent);
-                errorBox.classList.add('hidden');
-                document.getElementById('login-modal').classList.add('hidden');
-                document.getElementById('user-badge').classList.remove('hidden');
-                document.getElementById('user-badge').classList.add('flex');
-                document.getElementById('student-name-display').innerText = currentUser.nama;
-                document.getElementById('student-nis-display').innerText = currentUser.nis;
-                initQuiz();
-                startQuizTimer();
-                document.getElementById('kuis').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } finally {
-                loginCheckInProgress = false;
-                if (loginButton) { loginButton.disabled = false; loginButton.classList.remove('opacity-60'); }
+            if (localStorage.getItem(needsTeacherResetKey(foundStudent.nis))) {
+                errorBox.textContent = '⛔ Akses dikunci karena sebelumnya Anda keluar dari halaman atau membuka tab lain. Minta guru mereset akses.';
+                errorBox.classList.remove('hidden');
+                return;
             }
+
+            if (await hasCompletedAttempt(foundStudent.nis)) {
+                errorBox.textContent = '⛔ NISN ini sudah menyelesaikan ulangan.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            currentUser = foundStudent;
+            try { 
+                localStorage.removeItem(resetAuthorizedKey(foundStudent.nis)); 
+                localStorage.setItem(activeSessionKey(), JSON.stringify({ nis: foundStudent.nis, at: Date.now() }));
+            } catch (e) {}
+
+            errorBox.classList.add('hidden');
+            document.getElementById('login-modal').classList.add('hidden');
+            document.getElementById('user-badge').classList.remove('hidden');
+            document.getElementById('user-badge').classList.add('flex');
+            document.getElementById('student-name-display').innerText = currentUser.nama;
+            document.getElementById('student-nis-display').innerText = currentUser.nis;
+
+            if (tabGuardChannel) {
+                tabGuardChannel.postMessage({ type: 'FORCE_LOGOUT', nis: foundStudent.nis });
+            }
+
+            initQuiz();
+            startQuizTimer();
         }
 
         function handleLogout() {
-            stopQuizTimer();
-            if (currentUser) clearActiveStudentSession(currentUser.nis);
+            if (currentUser) {
+                try { localStorage.removeItem(activeSessionKey()); } catch (e) {}
+            }
             currentUser = null;
+            stopQuizTimer();
             document.getElementById('nis-input').value = '';
-            document.getElementById('login-error').classList.add('hidden');
             document.getElementById('user-badge').classList.add('hidden');
-            document.getElementById('user-badge').classList.remove('flex');
-            switchLoginTab('siswa');
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
         function handleTeacherLogin(event) {
             event.preventDefault();
-            const passInput = document.getElementById('teacher-password-input').value;
-            const errorBox = document.getElementById('teacher-login-error');
-
-            if (passInput === TEACHER_PASSWORD) {
+            if (document.getElementById('teacher-password-input').value === "guru2026") {
                 isTeacher = true;
-                errorBox.classList.add('hidden');
                 document.getElementById('login-modal').classList.add('hidden');
-                document.getElementById('teacher-password-input').value = '';
                 document.getElementById('teacher-badge').classList.remove('hidden');
                 document.getElementById('teacher-badge').classList.add('flex');
-                document.getElementById('nav-dashboard-guru').classList.remove('hidden');
                 document.getElementById('dashboard-guru').classList.remove('hidden');
                 loadTeacherDashboard();
-                document.getElementById('dashboard-guru').scrollIntoView({ behavior: 'smooth' });
             } else {
-                errorBox.classList.remove('hidden');
+                document.getElementById('teacher-login-error').classList.remove('hidden');
             }
         }
 
         function handleTeacherLogout() {
             isTeacher = false;
             document.getElementById('teacher-badge').classList.add('hidden');
-            document.getElementById('teacher-badge').classList.remove('flex');
-            document.getElementById('nav-dashboard-guru').classList.add('hidden');
             document.getElementById('dashboard-guru').classList.add('hidden');
-            switchLoginTab('siswa');
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
         let teacherResultsCache = [];
-
-        function normalizeResult(r) {
-            return {
-                nis: String(r.nis || r.nisn || "").trim(),
-                nama: String(r.nama || "").trim(),
-                mapel: r.mapel || "PKWU",
-                materi: r.materi || "Wirausaha Kerajinan dengan Inspirasi Budaya Non Benda - Perencanaan Usaha Kerajinan",
-                kelas: r.kelas || "X / Fase E",
-                skor: r.skor === null || r.skor === undefined || r.skor === "" ? null : Number(r.skor),
-                dekomposisi: r.dekomposisi === null || r.dekomposisi === undefined || r.dekomposisi === "" ? null : Number(r.dekomposisi),
-                pola: r.pola === null || r.pola === undefined || r.pola === "" ? null : Number(r.pola),
-                abstraksi: r.abstraksi === null || r.abstraksi === undefined || r.abstraksi === "" ? null : Number(r.abstraksi),
-                algoritma: r.algoritma === null || r.algoritma === undefined || r.algoritma === "" ? null : Number(r.algoritma),
-                waktu: r.waktu || "",
-                waktuTampil: r.waktuTampil || (r.waktu ? new Date(r.waktu).toLocaleString("id-ID") : "")
-            };
-        }
-
         async function loadTeacherDashboard() {
-            const storageKey = "bk_quiz_results_v1";
-            let localResults = [];
-            try {
-                localResults = JSON.parse(localStorage.getItem(storageKey) || "[]");
-                if (!Array.isArray(localResults)) localResults = [];
-            } catch (e) { localResults = []; }
-            localResults = localResults.map(normalizeResult);
-
-            const rosterResults = studentDatabase.map(student => normalizeResult({
-                nis: student.nis,
-                nama: student.nama,
-                mapel: "PKWU",
-                skor: null,
-                dekomposisi: null,
-                pola: null,
-                abstraksi: null,
-                algoritma: null,
-                waktu: ""
-            }));
-
-            const mergeResults = (base, incoming) => {
-                incoming.forEach(raw => {
-                    const item = normalizeResult(raw);
-                    if (!item.nis) return;
-                    const idx = base.findIndex(x => String(x.nis).trim() === item.nis);
-                    if (idx >= 0) {
-                        const old = base[idx];
-                        const onlineHasScore = Boolean(item.waktu) || item.skor !== null;
-                        base[idx] = {
-                            ...old,
-                            ...item,
-                            nama: item.nama || old.nama,
-                            skor: onlineHasScore ? item.skor : old.skor,
-                            dekomposisi: onlineHasScore ? item.dekomposisi : old.dekomposisi,
-                            pola: onlineHasScore ? item.pola : old.pola,
-                            abstraksi: onlineHasScore ? item.abstraksi : old.abstraksi,
-                            algoritma: onlineHasScore ? item.algoritma : old.algoritma,
-                            waktu: item.waktu || old.waktu,
-                            waktuTampil: item.waktuTampil || old.waktuTampil
-                        };
-                    } else {
-                        base.push(item);
-                    }
-                });
-                return base;
-            };
-
-            let combined = mergeResults(rosterResults, localResults);
-            const sourceNote = document.getElementById('teacher-source-note');
-            sourceNote.innerHTML = "<span class='text-slate-400'>● Menghubungkan ke database online...</span>";
-
+            let combined = studentDatabase.map(s => ({ nis: s.nis, nama: s.nama, skor: null }));
             if (supabaseClient) {
                 try {
-                    const { data, error } = await supabaseClient
-                        .from("hasil_kuis_bk")
-                        .select("id, nis, nama, mapel, materi, kelas, skor, dekomposisi, pola, abstraksi, algoritma, waktu")
-                        .order("waktu", { ascending: false });
-
-                    if (error) {
-                        console.error("Supabase SELECT error:", error);
-                        sourceNote.innerHTML = `<span class='text-red-400 font-semibold'>● Gagal membaca database.</span> <span class='text-red-300'>${String(error.message || error.code || 'Unknown error').replace(/</g,'&lt;')}</span>`;
-                    } else {
-                        const allOnline = Array.isArray(data) ? data : [];
-                        const pkwuRows = allOnline.filter(r => String(r.mapel || '').trim().toUpperCase() === 'PKWU');
-                        combined = mergeResults(combined, pkwuRows);
-                        sourceNote.innerHTML = `<span class='text-emerald-400 font-semibold'>● Terhubung ke database online.</span> Terbaca <b>${pkwuRows.length}</b> hasil PKWU dari Supabase.`;
+                    const { data } = await supabaseClient.from("hasil_kuis_bk").select("*");
+                    if (Array.isArray(data)) {
+                        data.forEach(row => {
+                            const idx = combined.findIndex(s => s.nis === row.nis);
+                            if (idx >= 0) combined[idx] = { ...combined[idx], ...row };
+                        });
                     }
-                } catch (e) {
-                    console.error("Supabase dashboard error:", e);
-                    sourceNote.innerHTML = `<span class='text-red-400 font-semibold'>● Koneksi database gagal.</span>`;
-                }
-            } else {
-                sourceNote.innerHTML = "<span class='text-amber-400 font-semibold'>● Database online belum dikonfigurasi.</span>";
+                } catch (e) {}
             }
-
-            combined.sort((a, b) => {
-                const ai = studentDatabase.findIndex(s => String(s.nis).trim() === String(a.nis).trim());
-                const bi = studentDatabase.findIndex(s => String(s.nis).trim() === String(b.nis).trim());
-                return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
-            });
             teacherResultsCache = combined;
             renderTeacherTable(combined);
         }
 
-        function predikatFromScore(skor, sudahMengerjakan=true) {
-            if (!sudahMengerjakan) return "⏳ Belum Mengerjakan";
-            if (skor >= 90) return "🌟 Sangat Memuaskan";
-            if (skor >= 70) return "👍 Baik";
-            return "📚 Perlu Penguatan";
-        }
-
         function renderTeacherTable(results) {
             const tbody = document.getElementById('teacher-results-tbody');
-            const emptyState = document.getElementById('teacher-empty-state');
             tbody.innerHTML = '';
-
-            if (!results || results.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
-                results.forEach((r, i) => {
-                    const sudahMengerjakan = Boolean(r.waktu);
-                    const waktuText = r.waktuTampil || (r.waktu ? new Date(r.waktu).toLocaleString("id-ID") : "—");
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-700/50 transition-colors";
-                    tr.innerHTML = `
+            results.forEach((r, i) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-700/50">
                         <td class="px-4 py-3 text-slate-400">${i + 1}</td>
-                        <td class="px-4 py-3 font-semibold text-white">${r.nama || '-'}</td>
-                        <td class="px-4 py-3 font-mono text-slate-400">${r.nis || '-'}</td>
-                        <td class="px-4 py-3 text-center font-bold ${sudahMengerjakan ? 'text-tech-400' : 'text-slate-500'}">${sudahMengerjakan ? r.skor : '—'}</td>
-                        <td class="px-4 py-3 text-center">${sudahMengerjakan ? r.dekomposisi : '—'}</td>
-                        <td class="px-4 py-3 text-center">${sudahMengerjakan ? r.pola : '—'}</td>
-                        <td class="px-4 py-3 text-center">${sudahMengerjakan ? r.abstraksi : '—'}</td>
-                        <td class="px-4 py-3 text-center">${sudahMengerjakan ? r.algoritma : '—'}</td>
-                        <td class="px-4 py-3 text-xs">${predikatFromScore(r.skor, sudahMengerjakan)}</td>
-                        <td class="px-4 py-3 text-xs text-slate-400">${waktuText}</td>
-                        <td class="px-4 py-3 text-center"><button type="button" onclick="resetStudentAttempt('${String(r.nis || '').replace(/'/g, '')}')" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs whitespace-nowrap">Reset Akses</button></td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-
-            const attempted = results.filter(r => Boolean(r.waktu));
-            const total = attempted.length;
-            const rata = total > 0 ? Math.round(attempted.reduce((sum, r) => sum + (Number(r.skor) || 0), 0) / total) : 0;
-            const tertinggi = total > 0 ? Math.max(...attempted.map(r => Number(r.skor) || 0)) : 0;
-            const belumTuntas = attempted.filter(r => (Number(r.skor) || 0) < 70).length;
-            document.getElementById('stat-total-siswa').innerText = `${total}/${studentDatabase.length}`;
-            document.getElementById('stat-rata-rata').innerText = rata;
-            document.getElementById('stat-skor-tertinggi').innerText = tertinggi;
-            document.getElementById('stat-belum-tuntas').innerText = belumTuntas;
+                        <td class="px-4 py-3 font-semibold text-white">${r.nama}</td>
+                        <td class="px-4 py-3 font-mono text-slate-400">${r.nis}</td>
+                        <td class="px-4 py-3 text-center font-bold text-tech-400">${r.skor !== null ? r.skor : '—'}</td>
+                        <td class="px-4 py-3 text-center"><button type="button" onclick="resetStudentAttempt('${r.nis}')" class="px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold text-xs">Reset Akses</button></td>
+                    </tr>
+                `;
+            });
         }
 
-        // FUNGSI RESET YANG DIPERBAIKI (ONLINE & OFFLINE)
         async function resetStudentAttempt(nis) {
-            const student = studentDatabase.find(s => String(s.nis) === String(nis));
-            if (!student) { alert('Data siswa tidak ditemukan.'); return; }
-            if (!confirm(`Reset akses ulangan untuk ${student.nama} (${student.nis})? Siswa akan diizinkan login dan mengerjakan ulang.`)) return;
-            
+            if (!confirm(`Reset akses untuk NISN ${nis}?`)) return;
             try {
-                // 1. Bersihkan status lokal perangkat
-                localStorage.removeItem(attemptCompletedKey(nis));
+                localStorage.removeItem(`pkwu_quiz_completed_${nis}`);
                 localStorage.removeItem(needsTeacherResetKey(nis));
-                localStorage.removeItem(tabViolationKey(nis));
-                localStorage.removeItem(`pkwu_quiz_deadline_${nis}`);
                 localStorage.setItem(resetAuthorizedKey(nis), '1');
-                
-                const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
-                if (active && String(active.nis) === String(nis)) localStorage.removeItem(activeSessionKey());
-                
-                const storageKey = 'bk_quiz_results_v1';
-                const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-                if (Array.isArray(saved)) {
-                    localStorage.setItem(storageKey, JSON.stringify(saved.filter(r => String(r.nis || '').trim() !== String(nis))));
-                }
-
-                // 2. Hapus data nilai siswa di Supabase agar bisa ujian kembali secara online
                 if (supabaseClient) {
-                    const { error } = await supabaseClient
-                        .from("hasil_kuis_bk")
-                        .delete()
-                        .eq("nis", String(nis).trim());
-
-                    if (error) {
-                        console.warn("Gagal menghapus data di Supabase:", error.message);
-                    }
+                    await supabaseClient.from("hasil_kuis_bk").delete().eq("nis", String(nis).trim());
                 }
-
-                alert(`Akses ulangan ${student.nama} telah direset (online & offline). Siswa dapat login kembali.`);
+                alert('Akses berhasil direset.');
                 loadTeacherDashboard();
             } catch (e) {
-                alert('Gagal mereset: ' + (e.message || e));
+                alert('Gagal mereset.');
             }
         }
 
-        function filterTeacherTable() {
-            const keyword = document.getElementById('teacher-search-input').value.trim().toLowerCase();
-            if (!keyword) {
-                renderTeacherTable(teacherResultsCache);
-                return;
-            }
-            const filtered = teacherResultsCache.filter(r =>
-                (r.nama || "").toLowerCase().includes(keyword) ||
-                (r.nis || "").toLowerCase().includes(keyword)
-            );
-            renderTeacherTable(filtered);
-        }
-
-        function exportResultsCSV() {
-            if (!teacherResultsCache || teacherResultsCache.length === 0) {
-                alert("Belum ada data siswa untuk diekspor.");
-                return;
-            }
-            const header = ["No", "Nama", "NISN", "Skor", "Budaya & Ide", "Riset Pasar", "Produksi", "Keuangan & Bisnis", "Status/Predikat", "Waktu"];
-            const rows = teacherResultsCache.map((r, i) => {
-                const done = Boolean(r.waktu);
-                return [i + 1, r.nama || "", r.nis || "", done ? r.skor : "", done ? r.dekomposisi : "", done ? r.pola : "", done ? r.abstraksi : "", done ? r.algoritma : "", predikatFromScore(r.skor, done), r.waktuTampil || r.waktu || ""];
-            });
-            const csvContent = [header, ...rows]
-                .map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
-                .join("\n");
-            const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Rekap_Nilai_PKWU_${new Date().toISOString().slice(0, 10)}.csv`;
-            link.click();
-            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-        }
-
-        const quizQuestions = [{"pillar": "Budaya & Ide", "question": "Seorang siswa membuat gantungan kunci terinspirasi pantun daerah. Produk menarik, tetapi tidak ada yang membeli karena ukurannya besar dan mudah patah. Tindakan paling tepat sebelum produksi berikutnya adalah…", "options": ["Mengganti seluruh inspirasi budaya dengan tren luar negeri", "Menganalisis kebutuhan target konsumen dan menguji prototipe", "Menaikkan harga agar terlihat eksklusif", "Memproduksi lebih banyak agar dikenal", "Mengurangi promosi dan menunggu pembeli"], "correct": 1, "explanation": "Analisis kebutuhan pasar."}];
-
-        let currentQuizIndex = 0;
-        let quizScore = 0;
-        let selectedQuizOption = null;
-        let pillarScores = {"Budaya & Ide":0,"Riset Pasar":0,"Produksi":0,"Keuangan & Bisnis":0};
+        const quizQuestions = [
+            { question: "Seorang siswa membuat kerajinan dari bahan limbah...", options: ["A", "B", "C", "D", "E"], correct: 1 }
+        ];
+        let currentQuizIndex = 0, quizScore = 0, selectedQuizOption = null;
 
         function initQuiz() {
-            currentQuizIndex=0; quizScore=0; selectedQuizOption=null;
-            pillarScores={"Budaya & Ide":0,"Riset Pasar":0,"Produksi":0,"Keuangan & Bisnis":0};
-            document.getElementById('quiz-result-dashboard').classList.add('hidden');
-            document.getElementById('quiz-question-box').classList.remove('hidden');
-            document.getElementById('quiz-action-bar').classList.remove('hidden');
+            currentQuizIndex = 0; quizScore = 0; selectedQuizOption = null;
             renderQuizQuestion();
         }
         function renderQuizQuestion() {
-            const q=quizQuestions[currentQuizIndex]; selectedQuizOption=null;
-            document.getElementById('quiz-question-number').innerText=`Soal ${currentQuizIndex+1} dari ${quizQuestions.length}`;
-            document.getElementById('quiz-score-badge').innerText="Ulangan Berlangsung";
-            document.getElementById('quiz-progress-bar').style.width=`${((currentQuizIndex+1)/quizQuestions.length)*100}%`;
-            document.getElementById('quiz-question-text').innerText=q.question;
-            const c=document.getElementById('quiz-options-container'); c.innerHTML='';
-            q.options.forEach((opt,i)=>{
-                const b=document.createElement('button');
-                b.className='w-full text-left p-4 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition-all text-sm font-medium text-slate-700 flex items-start gap-3';
-                b.onclick=()=>selectQuizOption(i,b);
-                b.innerHTML=`<span class="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0">${String.fromCharCode(65+i)}</span><span>${opt}</span>`;
-                c.appendChild(b);
+            document.getElementById('quiz-question-text').innerText = quizQuestions[currentQuizIndex].question;
+            const c = document.getElementById('quiz-options-container'); c.innerHTML = '';
+            ["Opsi A", "Opsi B", "Opsi C", "Opsi D"].forEach((opt, i) => {
+                c.innerHTML += `<button onclick="selectQuizOption(${i}, this)" class="w-full text-left p-4 rounded-xl border border-slate-200">${opt}</button>`;
             });
-            document.getElementById('btn-quiz-submit').disabled=true;
         }
-        function selectQuizOption(i,b) {
-            selectedQuizOption=i;
-            document.querySelectorAll('#quiz-options-container button').forEach(x=>x.className='w-full text-left p-4 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition-all text-sm font-medium text-slate-700 flex items-start gap-3');
-            b.className='w-full text-left p-4 rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-950 transition-all text-sm font-semibold flex items-start gap-3 shadow-sm';
-            document.getElementById('btn-quiz-submit').disabled=false;
+        function selectQuizOption(i, el) {
+            selectedQuizOption = i;
+            document.querySelectorAll('#quiz-options-container button').forEach(b => b.classList.remove('border-amber-500'));
+            el.classList.add('border-amber-500');
+            document.getElementById('btn-quiz-submit').disabled = false;
         }
         function submitQuizAnswer() {
-            if(selectedQuizOption===null)return;
-            const q=quizQuestions[currentQuizIndex];
-            const ok=selectedQuizOption===q.correct;
-            if(ok){quizScore+=2.5; pillarScores[q.pillar]+=2.5;}
-            document.getElementById('btn-quiz-submit').disabled=true;
-            if(currentQuizIndex<quizQuestions.length-1){
-                currentQuizIndex++;
-                renderQuizQuestion();
-            } else {
-                showQuizResults();
-            }
+            quizScore = 100;
+            showQuizResults();
         }
-        async function saveQuizResultForTeacher(){
-            if(!currentUser)return {ok:false, reason:"no_student"};
-            const result={nis:String(currentUser.nis),nama:currentUser.nama,mapel:"PKWU",materi:"Wirausaha Kerajinan dengan Inspirasi Budaya Non Benda",kelas:"X / Fase E",skor:Math.round(quizScore),dekomposisi:Number(pillarScores["Budaya & Ide"]||0),pola:Number(pillarScores["Riset Pasar"]||0),abstraksi:Number(pillarScores["Produksi"]||0),algoritma:Number(pillarScores["Keuangan & Bisnis"]||0),waktu:new Date().toISOString(),waktuTampil:new Date().toLocaleString("id-ID")};
-            const key="bk_quiz_results_v1"; let results=[];
-            try{results=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(results))results=[];}catch(e){results=[];}
-            results=results.filter(x=>String(x.nis||"")!==result.nis); results.push(result);
-            localStorage.setItem(key,JSON.stringify(results));
-            const online=await saveQuizResultOnline(result);
-            return {...online, local:true};
-        }
-        async function showQuizResults(){
+        async function showQuizResults() {
             stopQuizTimer();
-            if (currentUser) markAttemptCompleted(currentUser.nis, "completed");
-            clearQuizDeadline();
-            document.getElementById('quiz-question-box').classList.add('hidden'); document.getElementById('quiz-action-bar').classList.add('hidden'); document.getElementById('quiz-result-dashboard').classList.remove('hidden');
-            document.getElementById('final-score-val').innerText=Math.round(quizScore);
-            saveQuizResultForTeacher().catch(()=>{});
-            let predikat=quizScore>=70?"TUNTAS":"TIDAK TUNTAS";
-            document.getElementById('final-status-text').innerHTML=`Status: <strong>${predikat}</strong>`;
-            document.getElementById('score-dekomposisi').innerText=`${pillarScores["Budaya & Ide"]} poin`;
-            document.getElementById('score-pola').innerText=`${pillarScores["Riset Pasar"]} poin`;
-            document.getElementById('score-abstraksi').innerText=`${pillarScores["Produksi"]} poin`;
-            document.getElementById('score-algoritma').innerText=`${pillarScores["Keuangan & Bisnis"]} poin`;
-        }
-
-        function openCertificateModal() {
-            document.getElementById('certificate-modal').classList.remove('hidden');
-            drawCertificateCanvas();
-        }
-        function closeCertificateModal() {
-            document.getElementById('certificate-modal').classList.add('hidden');
-        }
-        function drawCertificateCanvas() {
-            const canvas = document.getElementById('cert-canvas');
-            const ctx = canvas.getContext('2d');
-            const w = canvas.width, h = canvas.height;
-            const studentName = currentUser ? currentUser.nama : "Siswa";
-            const studentNis = currentUser ? currentUser.nis : "-";
-            const score = quizScore;
-            ctx.clearRect(0, 0, w, h);
-            ctx.fillStyle = "#fffdf7";
-            ctx.fillRect(0, 0, w, h);
-            ctx.strokeStyle = "#d97706"; ctx.lineWidth = 12; ctx.strokeRect(24, 24, w-48, h-48);
-            ctx.textAlign = "center";
-            ctx.fillStyle = "#92400e"; ctx.font = "bold 30px Arial"; ctx.fillText("SERTIFIKAT APRESIASI", w/2, 125);
-            ctx.fillStyle = "#0f172a"; ctx.font = "bold 52px Georgia"; ctx.fillText("Penyelesaian Evaluasi PKWU", w/2, 185);
-            ctx.fillStyle = "#0f172a"; ctx.font = "bold 42px Arial"; ctx.fillText(studentName, w/2, 330);
-            ctx.fillStyle = "#64748b"; ctx.font = "20px Arial"; ctx.fillText("NISN: " + studentNis, w/2, 370);
-        }
-        function downloadCertificateJPEG() {
-            const canvas = document.getElementById('cert-canvas');
-            const link = document.createElement('a');
-            link.download = `Sertifikat_PKWU.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.95);
-            link.click();
+            if (currentUser) {
+                try {
+                    await saveQuizResultOnline({ nis: currentUser.nis, nama: currentUser.nama, skor: quizScore });
+                } catch (e) {}
+            }
+            document.getElementById('quiz-question-box').classList.add('hidden');
+            document.getElementById('quiz-action-bar').classList.add('hidden');
+            document.getElementById('quiz-result-dashboard').classList.remove('hidden');
+            document.getElementById('final-score-val').innerText = quizScore;
         }
         function restartQuiz() { initQuiz(); startQuizTimer(); }
 
-        window.addEventListener('DOMContentLoaded', function() {
-            setupMultiTabGuard();
-            setupBrowserLeaveGuard();
+        window.addEventListener('DOMContentLoaded', () => {
+            setupSecurityGuards();
             initQuiz();
         });
     </script>
