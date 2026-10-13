@@ -197,42 +197,97 @@ async function saveQuizResultOnline(result) {
     </section>
 
     <!-- DASHBOARD GURU -->
-    <section id="dashboard-guru" class="hidden py-16 bg-slate-900">
-        <div class="max-w-6xl mx-auto px-4">
-            <h2 class="text-3xl font-extrabold text-white mb-6">Dashboard CBT PKWU</h2>
-            <div class="flex flex-wrap gap-3 mb-6">
-                <button type="button" onclick="refreshTeacherDashboard()" class="px-4 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold">↻ Perbarui Data</button>
-                <button type="button" onclick="exportTeacherExcel()" class="px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">⬇ Ekspor Excel (.xlsx)</button>
-                <span id="teacher-refresh-status" class="self-center text-sm text-slate-300">Status siswa diperbarui saat dashboard dimuat.</span>
-            </div>
-            <div class="mb-8 bg-slate-800 rounded-2xl border border-slate-700 overflow-x-auto shadow-xl p-4">
-                <h3 class="text-lg font-bold text-white mb-1">🟢 Siswa Sedang Mengerjakan</h3>
-                <p class="text-xs text-slate-400 mb-3">Data lintas perangkat memerlukan tabel Supabase pkwu_quiz_progress (petunjuk SQL ada di catatan file).</p>
-                <table class="w-full text-sm text-left text-slate-200">
-                    <thead class="bg-slate-900/60 text-slate-400 text-[11px] uppercase"><tr><th class="px-3 py-3">Nama</th><th class="px-3 py-3">NISN</th><th class="px-3 py-3">Progres</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Aktivitas Terakhir</th></tr></thead>
-                    <tbody id="teacher-progress-tbody"><tr><td colspan="5" class="px-3 py-4 text-slate-400">Belum ada data progres online.</td></tr></tbody>
-                </table>
-            </div>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-x-auto shadow-xl p-4">
-                <h3 class="text-lg font-bold text-white mb-3">Hasil Pengerjaan Siswa</h3>
-                <table class="w-full text-sm text-left text-slate-200">
-                    <thead class="bg-slate-900/60 text-slate-400 text-[11px] uppercase">
-                        <tr>
-                            <th class="px-4 py-3">No</th>
-                            <th class="px-4 py-3">Nama Siswa</th>
-                            <th class="px-4 py-3">NISN</th>
-                            <th class="px-4 py-3 text-center">Skor Akhir</th>
-                            <th class="px-4 py-3 text-center">Akses Ulangan</th>
-                        </tr>
-                    </thead>
-                    <tbody id="teacher-results-tbody"></tbody>
-                </table>
-            </div>
+    <section id="dashboard-guru" class="hidden min-h-screen bg-slate-100">
+        <div class="min-h-screen md:flex">
+            <!-- Navigasi samping ala CBT nasional -->
+            <aside class="w-full md:w-64 md:min-h-screen bg-slate-950 text-white flex-shrink-0 shadow-xl">
+                <div class="px-6 py-6 border-b border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center text-xl font-black">CBT</div>
+                        <div>
+                            <div class="font-extrabold text-lg leading-tight">CBT PKWU</div>
+                            <div class="text-xs text-slate-400 mt-1">Panel Pengawas / Guru</div>
+                        </div>
+                    </div>
+                </div>
+                <nav class="p-3 space-y-1" aria-label="Navigasi dashboard guru">
+                    <div class="px-3 pt-2 pb-2 text-[11px] font-bold tracking-widest uppercase text-slate-500">MENU UTAMA</div>
+                    <button type="button" data-teacher-nav="peserta" onclick="showTeacherSection('peserta')" class="teacher-nav w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-left">
+                        <span class="text-lg">👥</span><span>Peserta Ujian</span>
+                    </button>
+                    <button type="button" data-teacher-nav="progres" onclick="showTeacherSection('progres')" class="teacher-nav w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left">
+                        <span class="text-lg">📡</span><span>Monitoring Ujian</span>
+                    </button>
+                    <button type="button" data-teacher-nav="hasil" onclick="showTeacherSection('hasil')" class="teacher-nav w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left">
+                        <span class="text-lg">📊</span><span>Hasil Ujian</span>
+                    </button>
+                    <div class="px-3 pt-6 pb-2 text-[11px] font-bold tracking-widest uppercase text-slate-500">OPERASIONAL</div>
+                    <button type="button" onclick="refreshTeacherDashboard()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left"><span class="text-lg">↻</span><span>Perbarui Data</span></button>
+                    <button type="button" onclick="exportTeacherExcel()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left"><span class="text-lg">⬇</span><span>Ekspor Excel</span></button>
+                    <button type="button" onclick="handleTeacherLogout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-300 hover:bg-rose-950/60 font-semibold text-left"><span class="text-lg">↪</span><span>Keluar Dashboard</span></button>
+                </nav>
+                <div class="hidden md:block mx-4 mt-8 p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="text-xs text-slate-400">Sistem Ujian</div>
+                    <div class="font-bold text-sm mt-1">CBT PKWU • Fase E</div>
+                    <div class="text-xs text-slate-500 mt-2">Panel pengelolaan ujian</div>
+                </div>
+            </aside>
+            <main class="min-w-0 flex-1">
+                <header class="bg-white border-b border-slate-200 px-5 md:px-8 py-5 flex flex-wrap gap-3 items-center justify-between shadow-sm">
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-widest text-blue-600">Sistem Ujian Online</div>
+                        <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Dashboard Guru</h2>
+                        <p class="text-sm text-slate-500 mt-1">Kelola peserta, pantau aktivitas, dan periksa hasil ujian.</p>
+                    </div>
+                    <div class="text-sm text-slate-500" id="teacher-refresh-status">Status siswa diperbarui saat dashboard dimuat.</div>
+                </header>
+                <div class="p-4 md:p-8 space-y-6">
+                    <div id="teacher-peserta-section" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
+                        <div class="flex flex-wrap justify-between gap-3 items-start mb-5">
+                            <div><h3 class="text-xl font-extrabold text-slate-900">Manajemen Peserta Ujian</h3><p class="text-sm text-slate-500 mt-1">Impor daftar peserta dari Excel dengan kolom NIS, nama, dan kelas.</p></div>
+                            <span class="rounded-full bg-blue-50 text-blue-700 text-xs font-bold px-3 py-2">DATA PESERTA</span>
+                        </div>
+                        <div class="flex flex-wrap gap-3 items-center mb-5">
+                            <input id="student-import-file" type="file" accept=".xlsx,.xls,.csv" class="max-w-full text-sm text-slate-700 border border-slate-300 rounded-lg p-2"/>
+                            <button type="button" onclick="importStudentsExcel()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold">⬆ Import Excel</button>
+                            <button type="button" onclick="downloadStudentTemplate()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold">⬇ Template Excel</button>
+                            <button type="button" onclick="printParticipants()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-bold">🖨 Cetak Peserta</button>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-3 mb-4">
+                            <input id="participant-search" oninput="participantCurrentPage=1; renderParticipantsTable()" placeholder="Cari NIS / nama / kelas" class="rounded-lg p-3 text-slate-900 border border-slate-300"/>
+                            <select id="participant-filter" onchange="participantCurrentPage=1; renderParticipantsTable()" class="rounded-lg p-3 text-slate-900 border border-slate-300"><option value="">Semua status</option><option value="Belum ujian">Belum ujian</option><option value="Sedang mengerjakan">Sedang mengerjakan</option><option value="Selesai">Selesai</option><option value="Terkunci">Terkunci</option></select>
+                            <div id="participant-count" class="text-slate-600 self-center font-semibold">Peserta: 0</div>
+                        </div>
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                            <table id="participants-print-table" class="w-full text-sm text-left text-slate-700">
+                                <thead class="bg-slate-100 text-slate-600 uppercase text-xs"><tr><th class="p-3">No</th><th class="p-3">NIS</th><th class="p-3">Nama</th><th class="p-3">Kelas</th><th class="p-3">Status Peserta</th><th class="p-3">Nilai</th><th class="p-3">Cetak</th><th class="p-3">Manajemen User</th></tr></thead>
+                                <tbody id="participants-tbody"></tbody>
+                            </table>
+                        </div>
+                        <div id="participant-pagination" class="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Navigasi halaman peserta"></div>
+                    </div>
+                    <div id="teacher-progres-section" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 overflow-x-auto">
+                        <h3 class="text-xl font-extrabold text-slate-900 mb-1">Monitoring Ujian</h3>
+                        <p class="text-sm text-slate-500 mb-4">Pantau progres pengerjaan peserta ujian.</p>
+                        <table class="w-full text-sm text-left text-slate-700">
+                            <thead class="bg-slate-100 text-slate-600 text-xs uppercase"><tr><th class="px-3 py-3">Nama</th><th class="px-3 py-3">NISN</th><th class="px-3 py-3">Progres</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Aktivitas Terakhir</th></tr></thead>
+                            <tbody id="teacher-progress-tbody"><tr><td colspan="5" class="px-3 py-4 text-slate-500">Belum ada data progres online.</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div id="teacher-hasil-section" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 overflow-x-auto text-black">
+                        <h3 class="text-xl font-extrabold text-slate-900 mb-4">Hasil Ujian</h3>
+                        <table class="w-full text-sm text-left text-black">
+                            <thead class="bg-slate-100 text-black text-xs uppercase"><tr><th class="px-4 py-3">No</th><th class="px-4 py-3">Nama Siswa</th><th class="px-4 py-3">NISN</th><th class="px-4 py-3 text-center">Skor Akhir</th><th class="px-4 py-3 text-center">Akses Ulangan</th></tr></thead>
+                            <tbody id="teacher-results-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
         </div>
     </section>
 
     <script>
-        const studentDatabase = [
+        let studentDatabase = loadSavedStudents() || [
             { nis: "0114205416", nama: "Aditya Afis Naufal Giofaldo" },
             { nis: "0101387523", nama: "Ahmad Dzaky Muflih Al Bani" },
             { nis: "0102246906", nama: "Ainun Fitria Zulham" },
@@ -1239,6 +1294,9 @@ async function saveQuizResultOnline(result) {
 
             errorBox.classList.add('hidden');
             document.getElementById('login-modal').classList.add('hidden');
+            // Pastikan halaman pengerjaan soal tampil hanya untuk siswa, bukan dashboard guru.
+            document.getElementById('kuis')?.classList.remove('hidden');
+            document.getElementById('dashboard-guru')?.classList.add('hidden');
             document.getElementById('user-badge').classList.remove('hidden');
             document.getElementById('user-badge').classList.add('flex');
             document.getElementById('student-name-display').innerText = currentUser.nama;
@@ -1271,6 +1329,8 @@ async function saveQuizResultOnline(result) {
             if (document.getElementById('teacher-password-input').value === "guru2026") {
                 isTeacher = true;
                 document.getElementById('login-modal').classList.add('hidden');
+                // Sembunyikan seluruh area soal siswa saat mode guru aktif.
+                document.getElementById('kuis')?.classList.add('hidden');
                 document.getElementById('teacher-badge').classList.remove('hidden');
                 document.getElementById('teacher-badge').classList.add('flex');
                 document.getElementById('dashboard-guru').classList.remove('hidden');
@@ -1289,7 +1349,139 @@ async function saveQuizResultOnline(result) {
             if (window.teacherDashboardInterval) { clearInterval(window.teacherDashboardInterval); window.teacherDashboardInterval = null; }
             document.getElementById('teacher-badge').classList.add('hidden');
             document.getElementById('dashboard-guru').classList.add('hidden');
+            document.getElementById('kuis')?.classList.add('hidden');
             document.getElementById('login-modal').classList.remove('hidden');
+        }
+
+        function loadSavedStudents() {
+            try {
+                const raw = localStorage.getItem('pkwu_student_roster');
+                const parsed = raw ? JSON.parse(raw) : null;
+                return Array.isArray(parsed) && parsed.length ? parsed : null;
+            } catch (e) { return null; }
+        }
+        function saveStudentsRoster() {
+            try { localStorage.setItem('pkwu_student_roster', JSON.stringify(studentDatabase)); }
+            catch (e) { alert('Daftar peserta tidak dapat disimpan pada browser ini.'); }
+        }
+        function showTeacherSection(section) {
+            ['peserta','progres','hasil'].forEach(k => {
+                const el = document.getElementById('teacher-' + k + '-section');
+                if (el) el.classList.toggle('hidden', k !== section);
+            });
+            document.querySelectorAll('[data-teacher-nav]').forEach(btn => {
+                const active = btn.getAttribute('data-teacher-nav') === section;
+                btn.classList.toggle('bg-blue-600', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('text-slate-300', !active);
+                if (active) btn.classList.remove('hover:bg-slate-800');
+                else btn.classList.add('hover:bg-slate-800');
+            });
+            if (section === 'peserta') renderParticipantsTable();
+        }
+        function downloadStudentTemplate() {
+            if (!window.XLSX) { alert('Pustaka Excel belum termuat.'); return; }
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Nis','nama','kelas'],['123456','Nama Siswa','X-1']]), 'Peserta');
+            XLSX.writeFile(wb, 'Template_Peserta_Ujian.xlsx');
+        }
+        async function importStudentsExcel() {
+            const file = document.getElementById('student-import-file')?.files?.[0];
+            if (!file) { alert('Pilih file Excel/CSV terlebih dahulu.'); return; }
+            if (!window.XLSX) { alert('Pustaka Excel belum termuat. Periksa koneksi internet.'); return; }
+            try {
+                const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
+                const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+                const normalized = rows.map(row => {
+                    const keys = Object.keys(row);
+                    const get = names => { const k = keys.find(x => names.includes(String(x).trim().toLowerCase())); return k ? String(row[k] ?? '').trim() : ''; };
+                    return {nis:get(['nis','nisn','nomor induk']), nama:get(['nama','nama siswa','nama peserta']), kelas:get(['kelas','rombel'])};
+                }).filter(r => r.nis && r.nama);
+                if (!normalized.length) throw new Error('Kolom wajib tidak ditemukan. Gunakan judul kolom Nis, nama, kelas.');
+                const unique = new Map(studentDatabase.map(s => [String(s.nis).trim(), {...s}]));
+                normalized.forEach(r => unique.set(r.nis, r));
+                studentDatabase = [...unique.values()];
+                saveStudentsRoster();
+                renderParticipantsTable();
+                alert(`Import berhasil: ${normalized.length} baris dibaca. Total peserta: ${studentDatabase.length}. Data peserta tersimpan di browser ini.`);
+            } catch (e) { alert('Import gagal: ' + (e.message || e)); }
+        }
+        function participantStatus(student) {
+            const result = teacherResultsCache.find(r => String(r.nis) === String(student.nis));
+            const progress = (teacherProgressCache || []).find(r => String(r.nis) === String(student.nis));
+            if (result && result.skor !== null && result.skor !== undefined) return 'Selesai';
+            if (progress && progress.status === 'Sedang mengerjakan' && progress.updated_at && Date.now()-new Date(progress.updated_at).getTime()<120000) return 'Sedang mengerjakan';
+            try { if (localStorage.getItem(needsTeacherResetKey(student.nis)) === '1') return 'Terkunci'; } catch(e) {}
+            return 'Belum ujian';
+        }
+        let participantCurrentPage = 1;
+        const PARTICIPANTS_PER_PAGE = 10;
+        function goToParticipantPage(page) {
+            participantCurrentPage = Math.max(1, Number(page) || 1);
+            renderParticipantsTable();
+        }
+        function renderParticipantsTable() {
+            const tbody = document.getElementById('participants-tbody');
+            if (!tbody) return;
+            const q = (document.getElementById('participant-search')?.value || '').toLowerCase().trim();
+            const filter = document.getElementById('participant-filter')?.value || '';
+            const rows = studentDatabase.filter(s => [s.nis,s.nama,s.kelas].some(v => String(v||'').toLowerCase().includes(q)) && (!filter || participantStatus(s)===filter));
+            const totalPages = Math.max(1, Math.ceil(rows.length / PARTICIPANTS_PER_PAGE));
+            participantCurrentPage = Math.min(Math.max(1, participantCurrentPage), totalPages);
+            const startIndex = (participantCurrentPage - 1) * PARTICIPANTS_PER_PAGE;
+            const pageRows = rows.slice(startIndex, startIndex + PARTICIPANTS_PER_PAGE);
+            document.getElementById('participant-count').textContent = `Peserta: ${rows.length} ditemukan / ${studentDatabase.length} total`;
+            tbody.innerHTML = pageRows.map((s,i) => {
+                const result = teacherResultsCache.find(r => String(r.nis)===String(s.nis));
+                const status = participantStatus(s);
+                return `<tr class="border-t border-slate-200"><td class="p-3">${startIndex+i+1}</td><td class="p-3">${escapeHtml(s.nis)}</td><td class="p-3">${escapeHtml(s.nama)}</td><td class="p-3">${escapeHtml(s.kelas||'-')}</td><td class="p-3">${status}</td><td class="p-3">${result && result.skor!=null ? escapeHtml(result.skor) : '-'}</td><td class="p-3"><button onclick="printOneParticipant('${String(s.nis).replace(/[^0-9a-zA-Z_-]/g,'')}')" class="px-2 py-1 rounded bg-violet-600 text-white">Cetak</button></td><td class="p-3"><button onclick="manageParticipant('${String(s.nis).replace(/[^0-9a-zA-Z_-]/g,'')}')" class="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold">Kelola</button></td></tr>`;
+            }).join('') || '<tr><td colspan="8" class="p-4 text-slate-500">Peserta tidak ditemukan.</td></tr>';
+            const pager = document.getElementById('participant-pagination');
+            if (pager) {
+                const from = rows.length ? startIndex + 1 : 0;
+                const to = Math.min(startIndex + PARTICIPANTS_PER_PAGE, rows.length);
+                const pageButtons = [];
+                const first = Math.max(1, participantCurrentPage - 2);
+                const last = Math.min(totalPages, first + 4);
+                for (let page = first; page <= last; page++) {
+                    pageButtons.push(`<button type="button" onclick="goToParticipantPage(${page})" aria-current="${page===participantCurrentPage?'page':'false'}" class="min-w-9 px-3 py-2 rounded-lg border text-sm font-semibold ${page===participantCurrentPage?'bg-blue-600 text-white border-blue-600':'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'}">${page}</button>`);
+                }
+                pager.innerHTML = `<div class="text-sm text-slate-500">Menampilkan ${from}–${to} dari ${rows.length} peserta · Maksimal 10 per halaman</div><div class="flex flex-wrap items-center gap-2"><button type="button" onclick="goToParticipantPage(1)" ${participantCurrentPage===1?'disabled':''} class="px-3 py-2 rounded-lg border border-slate-300 text-sm disabled:opacity-40">« Awal</button><button type="button" onclick="goToParticipantPage(${participantCurrentPage-1})" ${participantCurrentPage===1?'disabled':''} class="px-3 py-2 rounded-lg border border-slate-300 text-sm disabled:opacity-40">‹ Sebelumnya</button>${pageButtons.join('')}<button type="button" onclick="goToParticipantPage(${participantCurrentPage+1})" ${participantCurrentPage===totalPages?'disabled':''} class="px-3 py-2 rounded-lg border border-slate-300 text-sm disabled:opacity-40">Berikutnya ›</button><button type="button" onclick="goToParticipantPage(${totalPages})" ${participantCurrentPage===totalPages?'disabled':''} class="px-3 py-2 rounded-lg border border-slate-300 text-sm disabled:opacity-40">Akhir »</button></div>`;
+            }
+        }
+        function printOneParticipant(nis) {
+            const s = studentDatabase.find(x => String(x.nis)===String(nis));
+            if (!s) return;
+            const result = teacherResultsCache.find(r => String(r.nis)===String(nis));
+            const w = window.open('', '_blank');
+            if (!w) { alert('Izinkan pop-up untuk mencetak.'); return; }
+            w.document.write(`<html><head><title>Data Peserta</title><style>body{font-family:Arial;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #777;padding:8px;text-align:left}</style></head><body><h2>Data Peserta Ujian CBT PKWU</h2><table><tr><th>NIS</th><td>${escapeHtml(s.nis)}</td></tr><tr><th>Nama</th><td>${escapeHtml(s.nama)}</td></tr><tr><th>Kelas</th><td>${escapeHtml(s.kelas||'-')}</td></tr><tr><th>Status</th><td>${participantStatus(s)}</td></tr><tr><th>Nilai</th><td>${result?.skor ?? '-'}</td></tr></table><script>window.onload=()=>window.print()<\/script></body></html>`);
+            w.document.close();
+        }
+        function printParticipants() {
+            const table = document.getElementById('participants-print-table');
+            if (!table) return;
+            const w = window.open('', '_blank');
+            if (!w) { alert('Izinkan pop-up untuk mencetak.'); return; }
+            w.document.write(`<html><head><title>Daftar Peserta Ujian</title><style>body{font-family:Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #777;padding:6px;font-size:12px}button{display:none}</style></head><body><h2>Daftar Peserta Ujian CBT PKWU</h2>${table.outerHTML}</body></html>`);
+            w.document.close(); w.focus(); w.print();
+        }
+        async function manageParticipant(nis) {
+            const s = studentDatabase.find(x => String(x.nis)===String(nis));
+            if (!s) return;
+            const action = prompt(`Manajemen user: ${s.nama} (${s.nis})\nKetik: nama, kelas, reset, atau hapus`, 'reset');
+            if (!action) return;
+            if (action.toLowerCase()==='nama') {
+                const value=prompt('Nama siswa:',s.nama); if(value && value.trim()) s.nama=value.trim();
+            } else if (action.toLowerCase()==='kelas') {
+                const value=prompt('Kelas:',s.kelas||''); if(value && value.trim()) s.kelas=value.trim();
+            } else if (action.toLowerCase()==='reset') {
+                await resetStudentAttempt(nis); return;
+            } else if (action.toLowerCase()==='hapus') {
+                if(!confirm(`Hapus ${s.nama} dari daftar peserta di browser ini?`)) return;
+                studentDatabase=studentDatabase.filter(x=>String(x.nis)!==String(nis));
+            } else { alert('Pilihan tidak dikenal.'); return; }
+            saveStudentsRoster(); renderParticipantsTable(); renderTeacherTable(teacherResultsCache);
         }
 
         let teacherResultsCache = [];
@@ -1309,6 +1501,7 @@ async function saveQuizResultOnline(result) {
             teacherResultsCache = combined;
             renderTeacherTable(combined);
             await loadTeacherProgress();
+            renderParticipantsTable();
         }
 
         async function loadTeacherProgress() {
@@ -1340,6 +1533,7 @@ async function saveQuizResultOnline(result) {
                 }).join('');
             }
             if (status) status.textContent = `Aktif sekarang: ${activeRows.length} siswa • diperbarui ${new Date().toLocaleTimeString('id-ID')}`;
+            renderParticipantsTable();
         }
 
         function escapeHtml(value) {
@@ -1389,11 +1583,11 @@ async function saveQuizResultOnline(result) {
             tbody.innerHTML = '';
             results.forEach((r, i) => {
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-700/50">
-                        <td class="px-4 py-3 text-slate-400">${i + 1}</td>
-                        <td class="px-4 py-3 font-semibold text-white">${escapeHtml(r.nama || '')}</td>
-                        <td class="px-4 py-3 font-mono text-slate-400">${escapeHtml(r.nis || '')}</td>
-                        <td class="px-4 py-3 text-center font-bold text-tech-400">${r.skor !== null && r.skor !== undefined ? r.skor : '—'}</td>
+                    <tr class="border-t border-slate-200 text-black hover:bg-slate-100">
+                        <td class="px-4 py-3 text-black">${i + 1}</td>
+                        <td class="px-4 py-3 font-semibold text-black">${escapeHtml(r.nama || '')}</td>
+                        <td class="px-4 py-3 font-mono text-black">${escapeHtml(r.nis || '')}</td>
+                        <td class="px-4 py-3 text-center font-bold text-black">${r.skor !== null && r.skor !== undefined ? r.skor : '—'}</td>
                         <td class="px-4 py-3 text-center"><button type="button" onclick="resetStudentAttempt('${String(r.nis).replace(/[^0-9a-zA-Z_-]/g, '')}')" class="px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold text-xs">Reset Akses</button></td>
                     </tr>`;
             });
