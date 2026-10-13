@@ -1328,7 +1328,24 @@ async function saveQuizResultOnline(result) {
             return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
         }
 
-        async function refreshTeacherDashboard() { await loadTeacherDashboard(); }
+        async function refreshTeacherDashboard() {
+            const btn = document.querySelector('button[onclick="refreshTeacherDashboard()"]');
+            const status = document.getElementById('teacher-refresh-status');
+            if (btn) { btn.disabled = true; btn.dataset.oldText = btn.textContent; btn.textContent = 'Memuat...'; }
+            if (status) status.textContent = 'Sedang mengambil data terbaru dari Supabase...';
+            try {
+                await loadTeacherDashboard();
+                if (status && !status.textContent.startsWith('Gagal memuat progres')) {
+                    status.textContent = 'Data diperbarui pada ' + new Date().toLocaleTimeString('id-ID');
+                }
+            } catch (e) {
+                console.error('Perbarui dashboard gagal:', e);
+                if (status) status.textContent = 'Gagal memperbarui: ' + (e.message || e);
+                alert('Data gagal diperbarui. Periksa koneksi internet, tabel, dan izin Supabase.\n\nDetail: ' + (e.message || e));
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = btn.dataset.oldText || '↻ Perbarui Data'; }
+            }
+        }
 
         function exportTeacherExcel() {
             if (!window.XLSX) { alert('Fitur Excel belum termuat. Periksa koneksi internet, lalu coba lagi.'); return; }
@@ -1365,52 +1382,46 @@ async function saveQuizResultOnline(result) {
         }
 
         async function resetStudentAttempt(nis) {
-            const cleanNis = String(nis || "").trim();
+            const cleanNis = String(nis || '').trim();
             const student = studentDatabase.find(s => String(s.nis).trim() === cleanNis);
-            
-            if (!student) { 
-                alert('Data siswa dengan NISN tersebut tidak ditemukan.'); 
-                return; 
-            }
-            
-            if (!confirm(`Reset akses ulangan untuk ${student.nama} (${cleanNis})? Siswa akan diizinkan login kembali.`)) {
+            if (!student) {
+                alert('Data siswa dengan NISN ' + cleanNis + ' tidak ditemukan di daftar siswa aplikasi.');
                 return;
             }
-            
+            if (!confirm('Reset akses ulangan untuk ' + student.nama + ' (' + cleanNis + ')?\\n\\nTindakan ini menghapus nilai tersimpan agar siswa dapat mengulang.')) return;
+
+            const btn = [...document.querySelectorAll('button')].find(b => (b.getAttribute('onclick') || '') === `resetStudentAttempt('${cleanNis}')`);
+            if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
+
             try {
-                localStorage.removeItem(`pkwu_quiz_completed_${cleanNis}`);
-                localStorage.removeItem(needsTeacherResetKey(cleanNis));
-                localStorage.removeItem(`pkwu_quiz_tab_violation_${cleanNis}`);
-                localStorage.removeItem(`pkwu_quiz_deadline_${cleanNis}`);
-                localStorage.setItem(resetAuthorizedKey(cleanNis), '1');
-                
-                const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
-                if (active && String(active.nis).trim() === cleanNis) {
-                    localStorage.removeItem(activeSessionKey());
-                }
+                if (!supabaseClient) throw new Error('Koneksi Supabase belum dikonfigurasi. Reset online tidak dapat dijamin.');
 
-                if (supabaseClient) {
-                    const accessResponse = await supabaseClient.from('pkwu_quiz_access').upsert({
-                        nis: cleanNis, perlu_reset: false, alasan: null, updated_at: new Date().toISOString()
-                    }, { onConflict: 'nis' });
-                    if (accessResponse.error) {
-                        console.warn('Status reset online gagal:', accessResponse.error.message);
-                    }
+                const accessResponse = await supabaseClient.from('pkwu_quiz_access').upsert({
+                    nis: cleanNis, perlu_reset: false, alasan: null, updated_at: new Date().toISOString()
+                }, { onConflict: 'nis' });
+                if (accessResponse.error) throw new Error('Gagal memperbarui pkwu_quiz_access: ' + accessResponse.error.message);
 
-                    const { error } = await supabaseClient
-                        .from("hasil_kuis_bk")
-                        .delete()
-                        .eq("nis", cleanNis);
+                const resultResponse = await supabaseClient.from('hasil_kuis_bk').delete().eq('nis', cleanNis);
+                if (resultResponse.error) throw new Error('Status reset tersimpan, tetapi nilai online gagal dihapus: ' + resultResponse.error.message);
 
-                    if (error) {
-                        console.warn("Gagal menghapus data online di Supabase:", error.message);
-                    }
-                }
+                try {
+                    localStorage.removeItem(needsTeacherResetKey(cleanNis));
+                    localStorage.removeItem(`pkwu_quiz_completed_${cleanNis}`);
+                    localStorage.removeItem(`pkwu_quiz_tab_violation_${cleanNis}`);
+                    localStorage.removeItem(`pkwu_quiz_deadline_${cleanNis}`);
+                    localStorage.setItem(resetAuthorizedKey(cleanNis), '1');
+                    const active = JSON.parse(localStorage.getItem(activeSessionKey()) || 'null');
+                    if (active && String(active.nis).trim() === cleanNis) localStorage.removeItem(activeSessionKey());
+                } catch (storageError) { console.warn('Pembersihan localStorage dilewati:', storageError); }
 
-                alert(`Permintaan reset untuk ${student.nama} selesai diproses. Jika status online gagal, periksa tabel dan izin Supabase.`);
-                loadTeacherDashboard();
+                alert('Reset berhasil disimpan online untuk ' + student.nama + '. Minta siswa memuat ulang halaman CBT lalu login kembali.');
+                await loadTeacherDashboard();
             } catch (e) {
-                alert('Gagal mereset: ' + (e.message || e));
+                console.error('Reset akses gagal:', e);
+                alert('RESET BELUM BERHASIL.\\n\\n' + (e.message || e) +
+                    '\\n\\nPastikan tabel pkwu_quiz_access memiliki kolom nis, perlu_reset, alasan, updated_at; tabel hasil_kuis_bk mengizinkan DELETE melalui kebijakan RLS.');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Reset Akses'; }
             }
         }
 
