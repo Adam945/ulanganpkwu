@@ -58,6 +58,9 @@ async function saveQuizResultOnline(result) {
 }
 </script>
 
+<!-- Excel export library -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -196,8 +199,22 @@ async function saveQuizResultOnline(result) {
     <!-- DASHBOARD GURU -->
     <section id="dashboard-guru" class="hidden py-16 bg-slate-900">
         <div class="max-w-6xl mx-auto px-4">
-            <h2 class="text-3xl font-extrabold text-white mb-6">Dashboard Nilai Kuis PKWU</h2>
+            <h2 class="text-3xl font-extrabold text-white mb-6">Dashboard CBT PKWU</h2>
+            <div class="flex flex-wrap gap-3 mb-6">
+                <button type="button" onclick="refreshTeacherDashboard()" class="px-4 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold">↻ Perbarui Data</button>
+                <button type="button" onclick="exportTeacherExcel()" class="px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">⬇ Ekspor Excel (.xlsx)</button>
+                <span id="teacher-refresh-status" class="self-center text-sm text-slate-300">Status siswa diperbarui saat dashboard dimuat.</span>
+            </div>
+            <div class="mb-8 bg-slate-800 rounded-2xl border border-slate-700 overflow-x-auto shadow-xl p-4">
+                <h3 class="text-lg font-bold text-white mb-1">🟢 Siswa Sedang Mengerjakan</h3>
+                <p class="text-xs text-slate-400 mb-3">Data lintas perangkat memerlukan tabel Supabase pkwu_quiz_progress (petunjuk SQL ada di catatan file).</p>
+                <table class="w-full text-sm text-left text-slate-200">
+                    <thead class="bg-slate-900/60 text-slate-400 text-[11px] uppercase"><tr><th class="px-3 py-3">Nama</th><th class="px-3 py-3">NISN</th><th class="px-3 py-3">Progres</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Aktivitas Terakhir</th></tr></thead>
+                    <tbody id="teacher-progress-tbody"><tr><td colspan="5" class="px-3 py-4 text-slate-400">Belum ada data progres online.</td></tr></tbody>
+                </table>
+            </div>
             <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-x-auto shadow-xl p-4">
+                <h3 class="text-lg font-bold text-white mb-3">Hasil Pengerjaan Siswa</h3>
                 <table class="w-full text-sm text-left text-slate-200">
                     <thead class="bg-slate-900/60 text-slate-400 text-[11px] uppercase">
                         <tr>
@@ -738,8 +755,40 @@ async function saveQuizResultOnline(result) {
         let quizScore = 0; 
         let selectedQuizOption = null;
         let studentAnswers = {};
+        let teacherProgressCache = [];
+        let progressHeartbeat = null;
+        let lastProgressWrite = 0;
 
-        function initQuiz() {
+        async function saveStudentProgress(statusOverride = null) {
+            if (!currentUser || !supabaseClient) return;
+            const now = Date.now();
+            if (!statusOverride && now - lastProgressWrite < 2500) return;
+            lastProgressWrite = now;
+            const answered = Object.values(studentAnswers).filter(v => v !== undefined && v !== null).length;
+            const payload = {
+                nis: String(currentUser.nis),
+                nama: String(currentUser.nama),
+                kelas: 'X / Fase E',
+                mapel: 'PKWU',
+                soal_saat_ini: Math.min(currentQuizIndex + 1, quizQuestions.length),
+                total_soal: quizQuestions.length,
+                jumlah_dijawab: answered,
+                status: statusOverride || 'Sedang mengerjakan',
+                updated_at: new Date().toISOString()
+            };
+            try {
+                const { error } = await supabaseClient.from('pkwu_quiz_progress').upsert(payload, { onConflict: 'nis' });
+                if (error) console.warn('Progres belum tersimpan online:', error.message);
+            } catch (e) { console.warn('Gagal menyimpan progres:', e); }
+        }
+
+        function startProgressHeartbeat() {
+            if (progressHeartbeat) clearInterval(progressHeartbeat);
+            saveStudentProgress('Sedang mengerjakan');
+            progressHeartbeat = setInterval(() => saveStudentProgress('Sedang mengerjakan'), 15000);
+        }
+
+        async function initQuiz() {
             currentQuizIndex = 0;
             quizScore = 0;
             selectedQuizOption = null;
@@ -748,6 +797,7 @@ async function saveQuizResultOnline(result) {
             document.getElementById('quiz-action-bar')?.classList.remove('hidden');
             document.getElementById('quiz-result-dashboard')?.classList.add('hidden');
             renderQuizQuestion();
+            saveStudentProgress('Sedang mengerjakan');
         }
 
         function renderQuizQuestion() {
@@ -812,12 +862,14 @@ async function saveQuizResultOnline(result) {
             el.classList.add('border-amber-500', 'bg-amber-50/50', 'ring-2', 'ring-amber-400');
             
             document.getElementById('btn-quiz-submit').disabled = false;
+            saveStudentProgress('Sedang mengerjakan');
         }
 
         function prevQuizQuestion() {
             if (currentQuizIndex > 0) {
                 currentQuizIndex--;
                 renderQuizQuestion();
+                saveStudentProgress('Sedang mengerjakan');
             }
         }
 
@@ -829,6 +881,7 @@ async function saveQuizResultOnline(result) {
             if (currentQuizIndex < quizQuestions.length - 1) {
                 currentQuizIndex++;
                 renderQuizQuestion();
+                saveStudentProgress('Sedang mengerjakan');
             } else {
                 calculateAndShowResults();
             }
@@ -875,6 +928,8 @@ async function saveQuizResultOnline(result) {
             // Simpan hasil online di latar belakang agar jaringan lambat tidak
             // menghalangi tampilan sertifikat.
             if (currentUser) {
+                if (progressHeartbeat) { clearInterval(progressHeartbeat); progressHeartbeat = null; }
+                saveStudentProgress('Selesai');
                 const userAtCompletion = { nis: currentUser.nis, nama: currentUser.nama };
                 try { localStorage.setItem(`pkwu_quiz_completed_${userAtCompletion.nis}`, '1'); } catch (e) {}
                 try {
@@ -1032,6 +1087,8 @@ async function saveQuizResultOnline(result) {
                 tabGuardChannel.postMessage({ type: 'FORCE_LOGOUT', nis });
             }
 
+            if (progressHeartbeat) { clearInterval(progressHeartbeat); progressHeartbeat = null; }
+            saveStudentProgress('Keluar');
             currentUser = null;
             stopQuizTimer();
             
@@ -1177,6 +1234,7 @@ async function saveQuizResultOnline(result) {
             // BroadcastChannel juga mengirim pesan ke tab pengirim sehingga siswa langsung ter-logout.
             initQuiz();
             startQuizTimer();
+            startProgressHeartbeat();
         }
 
         function handleLogout() {
@@ -1199,6 +1257,10 @@ async function saveQuizResultOnline(result) {
                 document.getElementById('teacher-badge').classList.add('flex');
                 document.getElementById('dashboard-guru').classList.remove('hidden');
                 loadTeacherDashboard();
+                if (window.teacherDashboardInterval) clearInterval(window.teacherDashboardInterval);
+                window.teacherDashboardInterval = setInterval(() => {
+                    if (isTeacher) loadTeacherDashboard();
+                }, 20000);
             } else {
                 document.getElementById('teacher-login-error').classList.remove('hidden');
             }
@@ -1206,6 +1268,7 @@ async function saveQuizResultOnline(result) {
 
         function handleTeacherLogout() {
             isTeacher = false;
+            if (window.teacherDashboardInterval) { clearInterval(window.teacherDashboardInterval); window.teacherDashboardInterval = null; }
             document.getElementById('teacher-badge').classList.add('hidden');
             document.getElementById('dashboard-guru').classList.add('hidden');
             document.getElementById('login-modal').classList.remove('hidden');
@@ -1216,17 +1279,74 @@ async function saveQuizResultOnline(result) {
             let combined = studentDatabase.map(s => ({ nis: s.nis, nama: s.nama, skor: null }));
             if (supabaseClient) {
                 try {
-                    const { data } = await supabaseClient.from("hasil_kuis_bk").select("*");
-                    if (Array.isArray(data)) {
+                    const { data, error } = await supabaseClient.from("hasil_kuis_bk").select("*");
+                    if (!error && Array.isArray(data)) {
                         data.forEach(row => {
-                            const idx = combined.findIndex(s => s.nis === row.nis);
+                            const idx = combined.findIndex(s => String(s.nis) === String(row.nis));
                             if (idx >= 0) combined[idx] = { ...combined[idx], ...row };
                         });
                     }
-                } catch (e) {}
+                } catch (e) { console.warn('Gagal memuat nilai:', e); }
             }
             teacherResultsCache = combined;
             renderTeacherTable(combined);
+            await loadTeacherProgress();
+        }
+
+        async function loadTeacherProgress() {
+            const tbody = document.getElementById('teacher-progress-tbody');
+            const status = document.getElementById('teacher-refresh-status');
+            let rows = [];
+            if (supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('pkwu_quiz_progress').select('*').order('updated_at', { ascending: false });
+                    if (error) throw error;
+                    rows = Array.isArray(data) ? data : [];
+                } catch (e) {
+                    console.warn('Gagal membaca progres online:', e.message || e);
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-amber-300">Data progres online belum tersedia. Pastikan tabel pkwu_quiz_progress sudah dibuat dan izin Supabase aktif.</td></tr>';
+                    teacherProgressCache = [];
+                    if (status) status.textContent = 'Gagal memuat progres: periksa tabel/izin Supabase.';
+                    return;
+                }
+            }
+            teacherProgressCache = rows;
+            const activeRows = rows.filter(r => r.status === 'Sedang mengerjakan' && r.updated_at && (Date.now() - new Date(r.updated_at).getTime() < 120000));
+            if (tbody) {
+                if (!rows.length) tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-slate-400">Belum ada siswa yang mengirimkan data progres.</td></tr>';
+                else tbody.innerHTML = rows.map(r => {
+                    const last = r.updated_at ? new Date(r.updated_at).toLocaleString('id-ID') : '-';
+                    const isActive = r.status === 'Sedang mengerjakan' && r.updated_at && (Date.now() - new Date(r.updated_at).getTime() < 120000);
+                    const statusText = isActive ? '🟢 Sedang mengerjakan' : (r.status || 'Tidak aktif');
+                    return `<tr class="border-t border-slate-700"><td class="px-3 py-3 font-semibold">${escapeHtml(r.nama || '-')}</td><td class="px-3 py-3 font-mono">${escapeHtml(r.nis || '-')}</td><td class="px-3 py-3">${Number(r.jumlah_dijawab || 0)} / ${Number(r.total_soal || 40)} soal (posisi ${Number(r.soal_saat_ini || 1)})</td><td class="px-3 py-3">${statusText}</td><td class="px-3 py-3 text-slate-400">${last}</td></tr>`;
+                }).join('');
+            }
+            if (status) status.textContent = `Aktif sekarang: ${activeRows.length} siswa • diperbarui ${new Date().toLocaleTimeString('id-ID')}`;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+
+        async function refreshTeacherDashboard() { await loadTeacherDashboard(); }
+
+        function exportTeacherExcel() {
+            if (!window.XLSX) { alert('Fitur Excel belum termuat. Periksa koneksi internet, lalu coba lagi.'); return; }
+            const results = (teacherResultsCache || []).map((r, i) => ({
+                'No': i + 1, 'Nama Siswa': r.nama || '', 'NISN': r.nis || '',
+                'Mata Pelajaran': r.mapel || 'PKWU', 'Materi': r.materi || 'Wirausaha Kerajinan Budaya Non Benda',
+                'Kelas': r.kelas || 'X / Fase E', 'Nilai Akhir': r.skor === null || r.skor === undefined ? '' : r.skor,
+                'Waktu Pengerjaan': r.waktu || ''
+            }));
+            const progress = (teacherProgressCache || []).map(r => ({
+                'Nama Siswa': r.nama || '', 'NISN': r.nis || '', 'Status': r.status || '',
+                'Soal Saat Ini': r.soal_saat_ini || '', 'Total Soal': r.total_soal || '',
+                'Jumlah Dijawab': r.jumlah_dijawab || '', 'Aktivitas Terakhir': r.updated_at || ''
+            }));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(results), 'Hasil Kuis');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(progress), 'Progres Siswa');
+            XLSX.writeFile(wb, `Rekap_CBT_PKWU_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
         function renderTeacherTable(results) {
@@ -1236,12 +1356,11 @@ async function saveQuizResultOnline(result) {
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-700/50">
                         <td class="px-4 py-3 text-slate-400">${i + 1}</td>
-                        <td class="px-4 py-3 font-semibold text-white">${r.nama}</td>
-                        <td class="px-4 py-3 font-mono text-slate-400">${r.nis}</td>
-                        <td class="px-4 py-3 text-center font-bold text-tech-400">${r.skor !== null ? r.skor : '—'}</td>
-                        <td class="px-4 py-3 text-center"><button type="button" onclick="resetStudentAttempt('${r.nis}')" class="px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold text-xs">Reset Akses</button></td>
-                    </tr>
-                `;
+                        <td class="px-4 py-3 font-semibold text-white">${escapeHtml(r.nama || '')}</td>
+                        <td class="px-4 py-3 font-mono text-slate-400">${escapeHtml(r.nis || '')}</td>
+                        <td class="px-4 py-3 text-center font-bold text-tech-400">${r.skor !== null && r.skor !== undefined ? r.skor : '—'}</td>
+                        <td class="px-4 py-3 text-center"><button type="button" onclick="resetStudentAttempt('${String(r.nis).replace(/[^0-9a-zA-Z_-]/g, '')}')" class="px-3 py-1 rounded bg-amber-500 text-slate-950 font-bold text-xs">Reset Akses</button></td>
+                    </tr>`;
             });
         }
 
