@@ -848,30 +848,51 @@ async function saveQuizResultOnline(result) {
         }
 
         async function showQuizResults(correctCount) {
-            if (currentUser) {
-                try {
-                    localStorage.setItem(`pkwu_quiz_completed_${currentUser.nis}`, '1');
-                } catch (e) {}
-                try {
-                    await saveQuizResultOnline({
-                        nis: currentUser.nis,
-                        nama: currentUser.nama,
-                        skor: quizScore,
-                        mapel: 'PKWU',
-                        materi: 'Wirausaha Kerajinan Budaya Non Benda',
-                        kelas: 'X / Fase E'
-                    });
-                } catch (e) {}
+            // Tampilkan sertifikat segera; jangan menunggu koneksi/database online.
+            const questionBox = document.getElementById('quiz-question-box');
+            const actionBar = document.getElementById('quiz-action-bar');
+            const resultDashboard = document.getElementById('quiz-result-dashboard');
+            const scoreElement = document.getElementById('final-score-val');
+            const statusText = document.getElementById('final-status-text');
+
+            if (questionBox) questionBox.classList.add('hidden');
+            if (actionBar) actionBar.classList.add('hidden');
+            if (resultDashboard) resultDashboard.classList.remove('hidden');
+            if (scoreElement) scoreElement.innerText = String(quizScore);
+            if (statusText) {
+                statusText.innerHTML = `Jawaban benar: <strong>${correctCount}</strong> dari ${quizQuestions.length} soal. ${quizScore >= 75 ? 'Selamat, nilai Anda mencapai KKM 75.' : 'Sertifikat penyelesaian tetap tersedia sebagai bukti telah mengikuti kuis.'}`;
             }
 
-            document.getElementById('quiz-question-box').classList.add('hidden');
-            document.getElementById('quiz-action-bar').classList.add('hidden');
-            document.getElementById('quiz-result-dashboard').classList.remove('hidden');
-            document.getElementById('final-score-val').innerText = quizScore;
-            
-            const statusText = document.getElementById('final-status-text');
-            statusText.innerHTML = `Jawaban benar: <strong>${correctCount}</strong> dari ${quizQuestions.length} soal. ${quizScore >= 75 ? 'Selamat, nilai Anda mencapai KKM 75.' : 'Sertifikat penyelesaian tetap tersedia sebagai bukti telah mengikuti kuis.'}`;
-            renderCertificate(correctCount);
+            // Buat sertifikat sebelum operasi jaringan apa pun.
+            try {
+                renderCertificate(correctCount);
+            } catch (err) {
+                console.error('Gagal membuat sertifikat:', err);
+                if (statusText) statusText.innerHTML += '<br><span class="text-red-600 font-semibold">Pratinjau sertifikat gagal dibuat. Muat ulang halaman dan coba lagi.</span>';
+            }
+            if (resultDashboard) resultDashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Simpan hasil online di latar belakang agar jaringan lambat tidak
+            // menghalangi tampilan sertifikat.
+            if (currentUser) {
+                const userAtCompletion = { nis: currentUser.nis, nama: currentUser.nama };
+                try { localStorage.setItem(`pkwu_quiz_completed_${userAtCompletion.nis}`, '1'); } catch (e) {}
+                try {
+                    await Promise.race([
+                        saveQuizResultOnline({
+                            nis: userAtCompletion.nis,
+                            nama: userAtCompletion.nama,
+                            skor: quizScore,
+                            mapel: 'PKWU',
+                            materi: 'Wirausaha Kerajinan Budaya Non Benda',
+                            kelas: 'X / Fase E'
+                        }),
+                        new Promise(resolve => setTimeout(resolve, 5000))
+                    ]);
+                } catch (e) {
+                    console.warn('Hasil kuis tidak berhasil disimpan online:', e);
+                }
+            }
         }
 
         function renderCertificate(correctCount) {
@@ -927,12 +948,22 @@ async function saveQuizResultOnline(result) {
             if (!canvas) { alert('Sertifikat belum tersedia.'); return; }
             const isJpg = String(format).toLowerCase() === 'jpg' || String(format).toLowerCase() === 'jpeg';
             const mime = isJpg ? 'image/jpeg' : 'image/png';
-            const dataUrl = canvas.toDataURL(mime, 0.95);
-            const safeName = String(currentUser?.nama || 'siswa').trim().replace(/[^a-z0-9_-]+/gi, '_');
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = `Sertifikat_PKWU_${safeName}.${isJpg ? 'jpg' : 'png'}`;
-            document.body.appendChild(link); link.click(); link.remove();
+            try {
+                const ctx = canvas.getContext('2d');
+                if (!ctx || canvas.width === 0 || canvas.height === 0) throw new Error('Canvas tidak siap');
+                const dataUrl = canvas.toDataURL(mime, 0.95);
+                if (!dataUrl || dataUrl === 'data:,') throw new Error('Gambar sertifikat kosong');
+                const safeName = String(currentUser?.nama || 'siswa').trim().replace(/[^a-z0-9_-]+/gi, '_');
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = `Sertifikat_PKWU_${safeName}.${isJpg ? 'jpg' : 'png'}`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            } catch (err) {
+                console.error('Gagal mengunduh sertifikat:', err);
+                alert('Sertifikat belum berhasil dibuat. Silakan muat ulang halaman dan coba kembali.');
+            }
         }
 
         function restartQuiz() { 
