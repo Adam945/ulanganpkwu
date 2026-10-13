@@ -733,10 +733,13 @@ async function saveQuizResultOnline(result) {
         let studentAnswers = {};
 
         function initQuiz() {
-            currentQuizIndex = 0; 
-            quizScore = 0; 
+            currentQuizIndex = 0;
+            quizScore = 0;
             selectedQuizOption = null;
             studentAnswers = {};
+            document.getElementById('quiz-question-box')?.classList.remove('hidden');
+            document.getElementById('quiz-action-bar')?.classList.remove('hidden');
+            document.getElementById('quiz-result-dashboard')?.classList.add('hidden');
             renderQuizQuestion();
         }
 
@@ -840,10 +843,16 @@ async function saveQuizResultOnline(result) {
         async function showQuizResults(correctCount) {
             if (currentUser) {
                 try {
-                    await saveQuizResultOnline({ 
-                        nis: currentUser.nis, 
-                        nama: currentUser.nama, 
-                        skor: quizScore 
+                    localStorage.setItem(`pkwu_quiz_completed_${currentUser.nis}`, '1');
+                } catch (e) {}
+                try {
+                    await saveQuizResultOnline({
+                        nis: currentUser.nis,
+                        nama: currentUser.nama,
+                        skor: quizScore,
+                        mapel: 'PKWU',
+                        materi: 'Wirausaha Kerajinan Budaya Non Benda',
+                        kelas: 'X / Fase E'
                     });
                 } catch (e) {}
             }
@@ -878,11 +887,24 @@ async function saveQuizResultOnline(result) {
             if ('BroadcastChannel' in window) {
                 tabGuardChannel = new BroadcastChannel('pkwu_quiz_guard_channel');
                 tabGuardChannel.onmessage = (event) => {
-                    if (event.data && event.data.type === 'FORCE_LOGOUT') {
-                        forceAutoLogout("Terdeteksi membuka tab baru atau sesi aktif di tempat lain.");
+                    if (event.data && event.data.type === 'FORCE_LOGOUT' &&
+                        currentUser && String(event.data.nis || '') === String(currentUser.nis)) {
+                        forceAutoLogout("Terdeteksi membuka tab baru atau sesi aktif di tempat lain.", false);
                     }
                 };
             }
+
+            // storage event hanya diterima tab lain pada origin yang sama, bukan tab pengirim.
+            window.addEventListener('storage', (event) => {
+                if (event.key === activeSessionKey() && currentUser && event.newValue) {
+                    try {
+                        const session = JSON.parse(event.newValue);
+                        if (session && String(session.nis) === String(currentUser.nis)) {
+                            forceAutoLogout("Sesi siswa yang sama dibuka pada tab lain.", false);
+                        }
+                    } catch (e) {}
+                }
+            });
 
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'hidden' && currentUser) {
@@ -930,9 +952,27 @@ async function saveQuizResultOnline(result) {
 
         async function hasCompletedAttempt(nis) {
             const normalizedNis = String(nis).trim();
+
+            // Status reset online menjadi sumber utama agar reset guru berlaku lintas perangkat.
+            if (supabaseClient) {
+                try {
+                    const access = await supabaseClient.from('pkwu_quiz_access')
+                        .select('perlu_reset').eq('nis', normalizedNis).maybeSingle();
+                    if (!access.error && access.data) {
+                        if (access.data.perlu_reset) return true;
+                        try {
+                            localStorage.removeItem(needsTeacherResetKey(normalizedNis));
+                            localStorage.removeItem(resetAuthorizedKey(normalizedNis));
+                            localStorage.removeItem(`pkwu_quiz_completed_${normalizedNis}`);
+                        } catch (e) {}
+                    }
+                } catch (e) {}
+            }
+
             try {
                 if (localStorage.getItem(resetAuthorizedKey(normalizedNis)) === '1') return false;
-                if (localStorage.getItem(needsTeacherResetKey(normalizedNis))) return true;
+                if (localStorage.getItem(needsTeacherResetKey(normalizedNis)) ||
+                    localStorage.getItem(`pkwu_quiz_completed_${normalizedNis}`)) return true;
             } catch (e) {}
 
             if (supabaseClient) {
@@ -974,7 +1014,10 @@ async function saveQuizResultOnline(result) {
             const ss = String(totalSeconds % 60).padStart(2, '0');
             const timer = document.getElementById('quiz-timer');
             if (timer) timer.textContent = `${mm}:${ss}`;
-            if (remaining <= 0) forceAutoLogout("Waktu ulangan telah habis.");
+            if (remaining <= 0) {
+                stopQuizTimer();
+                calculateAndShowResults();
+            }
         }
 
         function switchLoginTab(role) {
@@ -1030,10 +1073,8 @@ async function saveQuizResultOnline(result) {
             document.getElementById('student-name-display').innerText = currentUser.nama;
             document.getElementById('student-nis-display').innerText = currentUser.nis;
 
-            if (tabGuardChannel) {
-                tabGuardChannel.postMessage({ type: 'FORCE_LOGOUT', nis: foundStudent.nis });
-            }
-
+            // Jangan kirim FORCE_LOGOUT dari tab yang baru login:
+            // BroadcastChannel juga mengirim pesan ke tab pengirim sehingga siswa langsung ter-logout.
             initQuiz();
             startQuizTimer();
         }
@@ -1130,6 +1171,13 @@ async function saveQuizResultOnline(result) {
                 }
 
                 if (supabaseClient) {
+                    const accessResponse = await supabaseClient.from('pkwu_quiz_access').upsert({
+                        nis: cleanNis, perlu_reset: false, alasan: null, updated_at: new Date().toISOString()
+                    }, { onConflict: 'nis' });
+                    if (accessResponse.error) {
+                        console.warn('Status reset online gagal:', accessResponse.error.message);
+                    }
+
                     const { error } = await supabaseClient
                         .from("hasil_kuis_bk")
                         .delete()
@@ -1140,7 +1188,7 @@ async function saveQuizResultOnline(result) {
                     }
                 }
 
-                alert(`Akses ulangan ${student.nama} berhasil direset! Siswa dapat login kembali.`);
+                alert(`Permintaan reset untuk ${student.nama} selesai diproses. Jika status online gagal, periksa tabel dan izin Supabase.`);
                 loadTeacherDashboard();
             } catch (e) {
                 alert('Gagal mereset: ' + (e.message || e));
