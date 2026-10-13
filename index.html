@@ -1148,19 +1148,13 @@ async function saveQuizResultOnline(result) {
         function startQuizTimer() {
             stopQuizTimer();
             if (!currentUser) return;
-            const key = `pkwu_quiz_deadline_${currentUser.nis}`;
-            let storedDeadline = 0;
-            try { storedDeadline = Number(localStorage.getItem(key) || 0); } catch (e) {}
 
-            // Jangan langsung menyelesaikan kuis saat login ulang karena deadline lama
-            // dari sesi/logout sebelumnya sudah kedaluwarsa. Hasil yang benar-benar
-            // selesai tetap dikunci oleh hasCompletedAttempt() melalui hasil online.
-            if (!storedDeadline || storedDeadline <= Date.now()) {
-                quizDeadline = Date.now() + QUIZ_DURATION_MS;
-                try { localStorage.setItem(key, String(quizDeadline)); } catch (e) {}
-            } else {
-                quizDeadline = storedDeadline;
-            }
+            // Setiap login yang lolos pemeriksaan akses adalah sesi pengerjaan baru.
+            // Jangan memakai deadline lama dari localStorage karena siswa yang sudah
+            // di-reset dapat langsung dianggap kehabisan waktu oleh timer lama.
+            const key = `pkwu_quiz_deadline_${currentUser.nis}`;
+            quizDeadline = Date.now() + QUIZ_DURATION_MS;
+            try { localStorage.setItem(key, String(quizDeadline)); } catch (e) {}
 
             updateQuizTimer();
             quizTimerInterval = setInterval(updateQuizTimer, 1000);
@@ -1173,6 +1167,9 @@ async function saveQuizResultOnline(result) {
 
         function updateQuizTimer() {
             if (!quizDeadline || !currentUser) return;
+            // Abaikan timer jika layar hasil sudah tampil atau sesi bukan lagi aktif.
+            const resultDashboard = document.getElementById('quiz-result-dashboard');
+            if (resultDashboard && !resultDashboard.classList.contains('hidden')) return;
             const remaining = Math.max(0, quizDeadline - Date.now());
             const totalSeconds = Math.ceil(remaining / 1000);
             const mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
@@ -1263,6 +1260,7 @@ async function saveQuizResultOnline(result) {
             }
             currentUser = null;
             stopQuizTimer();
+            quizDeadline = null;
             document.getElementById('nis-input').value = '';
             document.getElementById('user-badge').classList.add('hidden');
             document.getElementById('login-modal').classList.remove('hidden');
