@@ -7,9 +7,6 @@
     <!-- Supabase JS v2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/*
-  KONFIGURASI DATABASE ONLINE
-*/
 const SUPABASE_URL = "https://mjghjilrxykchsxbhsvr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_UNiq5gu_9qSWhc845td6BQ_TNLUA7VE";
 const supabaseClient = (SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("PASTE_") &&
@@ -85,7 +82,7 @@ async function saveQuizResultOnline(result) {
         <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-6">
             <div class="text-center space-y-2">
                 <div class="w-16 h-16 bg-gradient-to-tr from-tech-600 to-brand-500 rounded-2xl flex items-center justify-center text-white font-black text-2xl mx-auto shadow-lg">
-                    CT
+                    PKWU
                 </div>
                 <h2 class="text-2xl font-extrabold text-slate-900">Masuk Ulangan Harian PKWU</h2>
                 <p class="text-xs text-slate-500">PKWU SMA Kelas X • Ulangan Harian HOTS</p>
@@ -105,7 +102,7 @@ async function saveQuizResultOnline(result) {
             <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label for="nis-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Masukkan NISN</label>
-                    <input type="text" id="nis-input" placeholder="Contoh: 0104016810" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-tech-500 text-slate-900 font-semibold outline-none">
+                    <input type="text" id="nis-input" placeholder="Contoh: 0114205416" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-tech-500 text-slate-900 font-semibold outline-none">
                 </div>
 
                 <div id="login-error" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium"></div>
@@ -139,7 +136,7 @@ async function saveQuizResultOnline(result) {
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-tech-600 to-brand-500 flex items-center justify-center text-white font-black text-xl">
-                        CT
+                        PKWU
                     </div>
                     <div>
                         <h1 class="font-bold text-slate-900 text-base">Wirausaha Kerajinan</h1>
@@ -181,8 +178,9 @@ async function saveQuizResultOnline(result) {
                     </div>
                     <button onclick="restartQuiz()" class="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl">🔄 Ulangi Kuis</button>
                 </div>
-                <div id="quiz-action-bar" class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
-                    <button onclick="submitQuizAnswer()" id="btn-quiz-submit" class="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl disabled:opacity-50" disabled>Jawab & Lanjut →</button>
+                <div id="quiz-action-bar" class="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center">
+                    <button onclick="prevQuizQuestion()" id="btn-quiz-prev" class="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl transition-all hidden">← Sebelumnya</button>
+                    <button onclick="submitQuizAnswer()" id="btn-quiz-submit" class="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl disabled:opacity-50 ml-auto" disabled>Jawab & Lanjut →</button>
                 </div>
             </div>
         </div>
@@ -211,46 +209,662 @@ async function saveQuizResultOnline(result) {
 
     <script>
         const studentDatabase = [
-            { nis: "0104016810", nama: "AHMAD TANDI" },
-            { nis: "0107098938", nama: "ALIYAH RAHMADANI PUTRI" },
-            { nis: "0114736319", nama: "ASTINA DEVI" },
-            { nis: "0118227413", nama: "AYRA QIRANI ANANDA" },
-            { nis: "0105668559", nama: "BAYU ANDIKA" },
-            { nis: "0102603895", nama: "BESSE NOVIVATUL KHAIRIAH" },
-            { nis: "0115978064", nama: "EBI" },
-            { nis: "3102523721", nama: "FARHAN HAMID" },
-            { nis: "0111806431", nama: "FARIZ ANDIKA" },
-            { nis: "0109512802", nama: "FAZRIL PASYA WIRANATA" },
-            { nis: "0116651427", nama: "FEBRYAN NEVENS ANDREAS" },
-            { nis: "0118815637", nama: "FERI ENG" },
-            { nis: "0119437072", nama: "FIKRI NUR ANANDA" },
-            { nis: "0103731170", nama: "FITRI SITI NUR ATIKAH" },
-            { nis: "0107688045", nama: "HILDA RAMADANI" },
-            { nis: "0102490187", nama: "HISYAM MARWAN" },
-            { nis: "0115720115", nama: "IRFAN MAULANA" },
-            { nis: "0107432537", nama: "MOCHAMMAD RAYHAN NOER RUDYAN" },
-            { nis: "0104606369", nama: "MUHAMMAD AHAD SYAHPUTRA" },
-            { nis: "0116413438", nama: "MUHAMMAD AZRIEL HAIDIR RAEHAN" },
-            { nis: "0104377604", nama: "MUHAMMAD FADLY" },
-            { nis: "0103655918", nama: "NAHJWA PUTRI RAMAHDANI" },
-            { nis: "0103212582", nama: "NIA RAHMADAYANI" },
-            { nis: "0101655164", nama: "NIVIAN ALSA" },
-            { nis: "0091034795", nama: "NORMAN JEFRIYANTO" },
-            { nis: "0106744770", nama: "OKTAVIANUR PRATIWI" },
-            { nis: "0099550570", nama: "PUTRI AULIA OKTAPIANI" },
-            { nis: "0119897871", nama: "RAFFA RADITYA DIKA" },
-            { nis: "0105269179", nama: "RISWAN RIDHO SAPUTRA" },
-            { nis: "0097747230", nama: "RUSLI" },
-            { nis: "3104005381", nama: "SASKIA EKA ROHANDRA" },
-            { nis: "0102656404", nama: "SATRIA RIFKY ADITYA" },
-            { nis: "0093342586", nama: "VERONIKA LIPAT" },
-            { nis: "0105141707", nama: "YELIAN TANDI BUAK" },
-            { nis: "0108079326", nama: "ZAHIRA PUTRI RAHMADANI" },
-            { nis: "0113345689", nama: "ZEA ADILA MYIESA ELIANTA" }
+            { nis: "0114205416", nama: "Aditya Afis Naufal Giofaldo" },
+            { nis: "0101387523", nama: "Ahmad Dzaky Muflih Al Bani" },
+            { nis: "0102246906", nama: "Ainun Fitria Zulham" },
+            { nis: "0114632245", nama: "Alam Rafiansyah Nugraha" },
+            { nis: "0102030610", nama: "Andika" },
+            { nis: "0117982755", nama: "Arvan Aydin Pradiansyah" },
+            { nis: "0119190655", nama: "Asyifah" },
+            { nis: "0091444462", nama: "Aditia Pratama" },
+            { nis: "0117868187", nama: "Besse Nur Sa'Ada" },
+            { nis: "3093996199", nama: "Carles" },
+            { nis: "0106572139", nama: "Dina" },
+            { nis: "0113710603", nama: "Dinar Diayanti" },
+            { nis: "0105613677", nama: "Fawzi Hilmi Asry" },
+            { nis: "0103849416", nama: "Hasti Thantia Putri" },
+            { nis: "0111345510", nama: "Jamilah Usman" },
+            { nis: "0116760066", nama: "Jeyremy Yasser" },
+            { nis: "0105008222", nama: "Jihan Prahmawati" },
+            { nis: "3100626059", nama: "Muh. Khairul Fatawa" },
+            { nis: "0109994145", nama: "Muhammad Basran Firdausi" },
+            { nis: "0116841729", nama: "Muhammad Farhan Isya" },
+            { nis: "0111009518", nama: "Muhammad Nur Alif Firdaus" },
+            { nis: "0114262658", nama: "Muhammad Revan" },
+            { nis: "0106089789", nama: "Muhammad Selamat" },
+            { nis: "0104408908", nama: "Muhammad Repal" },
+            { nis: "0118082470", nama: "Nadia Sajila" },
+            { nis: "0112192816", nama: "Nur Aziera Shafina" },
+            { nis: "0108477176", nama: "Raka Wisnu Wardana" },
+            { nis: "0108800051", nama: "Randy Saputra" },
+            { nis: "0116960868", nama: "Rejesika" },
+            { nis: "0105899034", nama: "Reyvan Rahmat Tandi Rante" },
+            { nis: "0111835147", nama: "Rika Aprianti" },
+            { nis: "3110689505", nama: "Siti Aszirah" },
+            { nis: "0116473576", nama: "Suryani" },
+            { nis: "0117861222", nama: "Winda Pindan" },
+            { nis: "0109281784", nama: "Zaskia Dahlia" },
+            { nis: "0103670093", nama: "Zhaki Junaidi" },
+            { nis: "0108714571", nama: "A. Winanda As Zahra" },
+            { nis: "0106367073", nama: "Afra Naylah Arkana" },
+            { nis: "0119582201", nama: "Aisha Afrilia" },
+            { nis: "0104211935", nama: "Andi Muhammad Aldy" },
+            { nis: "0116802385", nama: "Andi Muhammad Rozi" },
+            { nis: "0114861059", nama: "Asni Anda" },
+            { nis: "0095813505", nama: "Asroy" },
+            { nis: "0101419039", nama: "Berly Ori Balisa" },
+            { nis: "0109358862", nama: "Deni Dassi" },
+            { nis: "0105434823", nama: "Devra Dwi Octara Riyadi" },
+            { nis: "0117476159", nama: "Ersi Pabangke'" },
+            { nis: "0108745217", nama: "Hafisya Kyranie" },
+            { nis: "0108010727", nama: "Haryono" },
+            { nis: "0108783379", nama: "Katharina Kewa" },
+            { nis: "0091093549", nama: "Lutfi Adriani" },
+            { nis: "0107596759", nama: "M. Alfa Saputra" },
+            { nis: "0104272930", nama: "Meisehla Parerungan" },
+            { nis: "0102044078", nama: "Mochammad Fahd Dzaky Ansyah Putra" },
+            { nis: "0116713002", nama: "Muhammad Fadlan Abdillah" },
+            { nis: "0103838185", nama: "Muhammad Fawwaz Al-Qobusi" },
+            { nis: "0105616843", nama: "Muhammad Pradityansyah Putra" },
+            { nis: "0117221896", nama: "Muhammad Revaldy" },
+            { nis: "0105792099", nama: "Nur Efeli Titaponda" },
+            { nis: "0019916067", nama: "Nur Fatia" },
+            { nis: "0105121305", nama: "Nur Iftitah Jamaludin" },
+            { nis: "0111292585", nama: "Nur Rainsyah" },
+            { nis: "0106042213", nama: "Nurul Fazirah" },
+            { nis: "0103237068", nama: "Oktaviano Simon Boro" },
+            { nis: "0113126947", nama: "Oriza Anugrah Palajukan" },
+            { nis: "0111678221", nama: "Putri Aulia Nurzanah" },
+            { nis: "0108465628", nama: "Reana Nadia Sakila" },
+            { nis: "0117837736", nama: "Sahrif Aulia" },
+            { nis: "0115929989", nama: "Salazar Benze Yusuf Tokan" },
+            { nis: "0105266460", nama: "Surya Putra Andikah" },
+            { nis: "0102814807", nama: "Syakirah Nasywah Qanita" },
+            { nis: "0107097873", nama: "Zakiah Ramadhan" }
         ];
 
-        let currentUser = null;
-        let isTeacher = false;
+        // 40 Soal Pilihan Ganda HOTS Wirausaha Kerajinan Budaya Non Benda
+        const quizQuestions = [
+            {
+                question: "1. Budaya nonbenda meliputi segala bentuk tradisi lisan, adat istiadat, nyanyian rakyat, tarian, hingga kepercayaan lokal yang diwariskan secara turun-temurun. Ketika seorang wirausahawan ingin mentransformasikan nilai filosofis tarian tradisional ke dalam produk kerajinan fungsional, langkah awal analisis perencanaan usaha (6M) yang paling krusial adalah...",
+                options: [
+                    "Menyiapkan modal finansial (Money) dalam jumlah besar",
+                    "Meneliti makna filosofis dan estetika bentuk budaya tersebut (Man/Method)",
+                    "Membeli mesin cetak otomatis modern (Machine)",
+                    "Menentukan target pasar luar negeri tanpa riset lokal (Market)",
+                    "Mencari bahan baku impor paling mahal (Material)"
+                ],
+                correct: 1
+            },
+            {
+                question: "2. Dalam mengidentifikasi peluang usaha kerajinan berdasarkan inspirasi budaya nonbenda (seperti cerita rakyat atau mitos lokal), analisis SWOT sangat diperlukan. Manakah pernyataan yang paling tepat mencerminkan analisis 'Opportunity' (Peluang)?",
+                options: [
+                    "Bahan baku rotan lokal mulai langka di pasaran",
+                    "Tingginya minat wisatawan asing terhadap cerita rakyat lokal yang divisualisasikan dalam bentuk suvenir unik",
+                    "Keterampilan perajin desa yang masih tradisional dan lambat",
+                    "Kurangnya dukungan infrastruktur digital di daerah produksi",
+                    "Modal awal usaha yang terbatas dari tabungan pribadi"
+                ],
+                correct: 1
+            },
+            {
+                question: "3. Perencanaan produksi kerajinan inspirasi budaya nonbenda menuntut kreativitas tinggi agar produk tidak terkesan kuno. Strategi modifikasi bentuk (stilasi) dari objek budaya nonbenda abstrak menjadi produk benda kerajinan nyata bertujuan untuk...",
+                options: [
+                    "Menghilangkan sama sekali nilai historis budaya aslinya",
+                    "Mempermudah proses produksi massal sekaligus menyesuaikan dengan fungsi ergonomis dan selera pasar kontemporer",
+                    "Menaikkan harga jual produk secara tidak wajar",
+                    "Meniru produk impor dari negara lain secara identik",
+                    "Menghindari hak paten kebudayaan masyarakat lokal"
+                ],
+                correct: 1
+            },
+            {
+                question: "4. Sebuah kelompok wirausaha muda merancang produk kerajinan ukiran kayu yang terinspirasi dari kisah epik sastra lisan nusantara. Sebelum menentukan Harga Pokok Produksi (HPP), mereka harus memperhitungkan biaya tetap (fixed cost) dan biaya variabel (variable cost). Komponen mana yang termasuk ke dalam biaya variabel?",
+                options: [
+                    "Gaji bulanan manajer produksi tetap",
+                    "Biaya penyusutan mesin ukir",
+                    "Biaya pembelian kayu, cat, dan kemasan per unit produk",
+                    "Sewa tempat workshop selama 5 tahun",
+                    "Pajak tahunan bangunan usaha"
+                ],
+                correct: 2
+            },
+            {
+                question: "5. Aspek pemasaran (Marketing Mix - 7P) sangat menentukan keberhasilan wirausaha kerajinan budaya. Apabila produk kerajinan Anda memiliki nilai historis dan narasi cerita yang kuat, strategi 'Promotion' (Promosi) yang paling efektif di era digital adalah...",
+                options: [
+                    "Memasang baliho besar di jalan tol tanpa informasi produk",
+                    "Menggunakan storytelling digital melalui video pendek di media sosial yang mengeksplorasi asal-usul legenda budaya tersebut",
+                    "Membagikan brosur kertas di pasar tradisional secara acak",
+                    "Menunggu pembeli datang langsung ke tempat produksi di pelosok desa",
+                    "Mengiklankan produk di radio lokal pada tengah malam"
+                ],
+                correct: 1
+            },
+            {
+                question: "6. Dalam proses pembuatan prototipe (prototype) kerajinan berbasis budaya nonbenda, evaluasi bentuk fisik dan fungsi sangat penting sebelum diproduksi massal. Tahap ini dalam berpikir kreatif wirausaha dikenal sebagai...",
+                options: [
+                    "Brainstorming ide tanpa batas",
+                    "Validasi pasar dan uji kelayakan fungsional (ergonomi dan estetika)",
+                    "Likuidasi aset perusahaan",
+                    "Auditing laporan keuangan tahunan",
+                    "Penghentian inovasi produk"
+                ],
+                correct: 1
+            },
+            {
+                question: "7. Hak Kekayaan Intelektual (HKI) sangat penting bagi produk kerajinan yang terinspirasi dari budaya nonbenda agar tidak diklaim pihak lain. Bentuk perlindungan hukum yang paling tepat untuk motif atau desain khas ciptaan perajin adalah...",
+                options: [
+                    "Hak Cipta (Copyright) dan Hak Desain Industri",
+                    "Sertifikat tanah pabrik",
+                    "Surat Izin Mengemudi (SIM)",
+                    "Nomor Pokok Wajib Pajak (NPWP)",
+                    "Akta pendirian CV"
+                ],
+                correct: 0
+            },
+            {
+                question: "8. Seorang wirausahawan mengamati bahwa generasi muda saat ini kurang meminati cerita rakyat tradisional. Ia kemudian menciptakan boneka edukatif interaktif berbasis karakter legenda lokal dengan sentuhan desain modern. Tindakan wirausahawan ini mencerminkan karakteristik wirausaha yang...",
+                options: [
+                    "Konservatif dan menolak perubahan zaman",
+                    "Inovatif, adaptif, dan mampu mengubah tantangan budaya menjadi peluang ekonomis",
+                    "Ragu-ragu dalam mengambil keputusan bisnis",
+                    "Hanya berorientasi pada keuntungan jangka pendek",
+                    "Mengabaikan nilai-nilai budaya lokal demi profit"
+                ],
+                correct: 1
+            },
+            {
+                question: "9. Analisis Break Even Point (BEP) atau titik impas digunakan wirausahawan kerajinan untuk mengetahui kondisi di mana usaha tidak mengalami laba maupun rugi. Jika biaya tetap Rp5.000.000, harga jual per unit Rp50.000, dan biaya variabel per unit Rp30.000, berapakah unit BEP yang harus dicapai?",
+                options: [
+                    "100 unit",
+                    "150 unit",
+                    "250 unit",
+                    "500 unit",
+                    "1.000 unit"
+                ],
+                correct: 2
+            },
+            {
+                question: "10. Dalam manajemen sumber daya usaha kerajinan (6M), faktor 'Man' (Manusia) yang kompeten dapat ditingkatkan melalui...",
+                options: [
+                    "Mengurangi jam kerja karyawan secara drastis",
+                    "Pelatihan keterampilan teknis pengrajin dan pemahaman nilai filosofi budaya produk",
+                    "Menghilangkan sistem pengawasan mutu",
+                    "Memberikan upah di bawah standar minimum",
+                    "Merekrut pekerja tanpa seleksi keahlian"
+                ],
+                correct: 1
+            },
+            {
+                question: "11. Perhatikan unsur-unsur perencanaan usaha kerajinan berikut:\n1. Analisis kelayakan pasar\n2. Desain dan bentuk produk\n3. Perhitungan laba rugi\n4. Sumber permodalan\nManakah urutan yang paling logis dalam menyusun proposal usaha kerajinan budaya nonbenda?",
+                options: [
+                    "3 - 4 - 1 - 2",
+                    "2 - 1 - 4 - 3",
+                    "1 - 2 - 4 - 3",
+                    "4 - 3 - 2 - 1",
+                    "2 - 3 - 1 - 4"
+                ],
+                correct: 2
+            },
+            {
+                question: "12. Pengemasan (packaging) kerajinan berbasis budaya nonbenda tidak hanya berfungsi melindungi produk dari kerusakan, tetapi juga berfungsi sebagai...",
+                options: [
+                    "Alat untuk menaikkan berat produk",
+                    "Media komunikasi visual yang menyampaikan cerita (storytelling) dan identitas budaya produk tersebut kepada konsumen",
+                    "Pemberat ongkos kirim ekspedisi",
+                    "Penutup cacat produksi agar tidak terlihat",
+                    "Bahan buangan yang langsung dibuang pembeli"
+                ],
+                correct: 1
+            },
+            {
+                question: "13. Risiko kegagalan dalam usaha kerajinan sering kali terjadi karena wirausahawan kurang melakukan analisis pasar. Apa risiko terbesar jika produk kerajinan tidak disesuaikan dengan kebutuhan ergonomis konsumen modern?",
+                options: [
+                    "Produk menjadi terlalu laris di pasaran",
+                    "Konsumen hanya membeli sekali dan tidak ada repeat order karena produk tidak nyaman atau tidak fungsional",
+                    "Biaya produksi menjadi sangat murah",
+                    "Pemerintah memberikan subsidi tambahan",
+                    "Bahan baku melimpah ruah"
+                ],
+                correct: 1
+            },
+            {
+                question: "14. Istilah 'Brainstorming' dalam tahap perencanaan ide usaha kerajinan bermakna...",
+                options: [
+                    "Penyimpanan bahan baku di gudang dingin",
+                    "Sesi pengumpulan ide kreatif sebanyak-banyaknya dari tim tanpa menghakimi ide awal sebelum disaring",
+                    "Perhitungan pajak penghasilan badan usaha",
+                    "Pemeriksaan kesehatan fisik seluruh karyawan",
+                    "Proses pengemasan barang ekspor"
+                ],
+                correct: 1
+            },
+            {
+                question: "15. Sumber inspirasi objek budaya nonbenda yang dapat diangkat menjadi kerajinan meliputi tradisi lisan. Contoh wujud nyata dari tradisi lisan yang dapat menginspirasi kerajinan kriya adalah...",
+                options: [
+                    "Pakaian adat pengantin tradisional",
+                    "Pantun, cerita rakyat (folklore), mite, legenda, dan asal-usul suatu daerah",
+                    "Candi batu prasejarah",
+                    "Senjata tradisional keris",
+                    "Alat musik gamelan perunggu"
+                ],
+                correct: 1
+            },
+            {
+                question: "16. Ketika seorang wirausahawan menghitung Harga Pokok Produksi (HPP), komponen biaya overhead pabrik (factory overhead cost) yang harus dimasukkan meliputi...",
+                options: [
+                    "Harga emas perhiasan",
+                    "Biaya listrik workshop, bahan penolong, dan penyusutan alat",
+                    "Keuntungan bersih yang diinginkan pengusaha",
+                    "Gaji pribadi pemilik saat berlibur",
+                    "Biaya sumbangan sosial perusahaan"
+                ],
+                correct: 1
+            },
+            {
+                question: "17. Strategi penetapan harga (Pricing Strategy) dengan cara menetapkan harga di atas rata-rata pasar karena produk memiliki keunikan budaya yang tinggi dan eksklusif disebut...",
+                options: [
+                    "Penetapan harga penetrasi (Penetration pricing)",
+                    "Penetapan harga prestise atau skimming pricing",
+                    "Penetapan harga murah meriah",
+                    "Penetapan harga rugi",
+                    "Penetapan harga subsidi"
+                ],
+                correct: 1
+            },
+            {
+                question: "18. Evaluasi hasil usaha kerajinan pada akhir periode akuntansi sangat penting untuk menilai tingkat kesehatan finansial. Rasio profitabilitas digunakan untuk mengukur...",
+                options: [
+                    "Kemampuan perusahaan dalam membayar seluruh utang jangka pendek",
+                    "Kemampuan perusahaan dalam menghasilkan laba bersih dari penjualan dan investasi",
+                    "Jumlah total karyawan yang masuk kerja",
+                    "Luas bangunan pabrik kerajinan",
+                    "Jumlah bahan baku yang tersisa di gudang"
+                ],
+                correct: 1
+            },
+            {
+                question: "19. Suatu kerajinan hiasan dinding yang mengangkat filosofi 'Sapta Loka' dalam cerita lokal memerlukan ketelitian tinggi. Pengendalian mutu (Quality Control) pada produk ini dilakukan pada tahap...",
+                options: [
+                    "Hanya saat produk sudah sampai di tangan pembeli",
+                    "Mulai dari pemilihan bahan baku, proses pengerjaan ukiran, hingga finishing dan pengemasan akhir",
+                    "Saat menyusun laporan laba rugi",
+                    "Ketika menentukan nama merek produk",
+                    "Setelah toko ditutup permanen"
+                ],
+                correct: 1
+            },
+            {
+                question: "20. Mengapa analisis pesaing (Competitor Analysis) sangat esensial dalam perencanaan wirausaha kerajinan budaya nonbenda?",
+                options: [
+                    "Agar dapat menjatuhkan usaha pesaing dengan cara tidak sehat",
+                    "Untuk mengetahui kelebihan dan kelemahan produk pesaing sehingga dapat menciptakan nilai tambah (value added) yang membedakan produk kita",
+                    "Supaya kita bisa meniru persis produk pesaing tanpa inovasi",
+                    "Agar harga di pasaran menjadi monopoli tunggal",
+                    "Untuk menghindari keharusan membayar pajak"
+                ],
+                correct: 1
+            },
+            {
+                question: "21. Dalam pembuatan kerajinan dari inspirasi budaya nonbenda, pendekatan 'Design Thinking' dimulai dari tahap 'Empathize' (Empati). Apa wujud nyata tahap ini bagi wirausahawan?",
+                options: [
+                    "Langsung memproduksi barang dalam jumlah ribuan unit",
+                    "Memahami kebutuhan, emosi, dan ketertarikan target konsumen terhadap kisah budaya yang ingin diangkat",
+                    "Menetapkan harga jual tertinggi",
+                    "Meminjam modal bank tanpa rencana",
+                    "Menutup komunikasi dengan pelanggan"
+                ],
+                correct: 1
+            },
+            {
+                question: "22. Keuntungan utama dari penggunaan bahan baku lokal yang ramah lingkungan (eco-friendly) dalam kerajinan budaya nonbenda adalah...",
+                options: [
+                    "Biaya produksi menjadi sangat mahal dan tidak terjangkau",
+                    "Mendukung prinsip pembangunan berkelanjutan (sustainability) dan memiliki daya tarik pemasaran global (green marketing)",
+                    "Produk cepat rusak dan tidak tahan lama",
+                    "Meningkatkan pencemaran limbah kimia",
+                    "Mengurangi nilai estetika produk"
+                ],
+                correct: 1
+            },
+            {
+                question: "23. Perencanaan administrasi usaha kerajinan meliputi pencatatan surat-menyurat, perizinan usaha, pembukuan keuangan, dan perpajakan. Tujuan utama tertib administrasi adalah...",
+                options: [
+                    "Menambah beban pekerjaan karyawan administrasi",
+                    "Menjadi dasar pengambilan keputusan manajerial yang akurat dan bukti legalitas hukum usaha",
+                    "Menghindari pemeriksaan dari pihak berwenang",
+                    "Membuat laporan keuangan terlihat rumit",
+                    "Mengurangi omzet penjualan"
+                ],
+                correct: 1
+            },
+            {
+                question: "24. Apa yang dimaksud dengan strategi diversifikasi produk dalam wirausaha kerajinan?",
+                options: [
+                    "Menjual hanya satu jenis produk dengan warna yang sama persis",
+                    "Mengembangkan berbagai varian produk baru dari tema budaya yang sama untuk menjangkau segmen pasar yang lebih luas",
+                    "Menutup seluruh lini produksi kerajinan",
+                    "Mengimpor produk jadi dari luar negeri",
+                    "Menurunkan kualitas bahan baku demi efisiensi"
+                ],
+                correct: 1
+            },
+            {
+                question: "25. Jika sebuah usaha kerajinan mengalami kerugian berturut-turut selama tiga bulan, langkah strategis pertama yang harus diambil wirausahawan adalah...",
+                options: [
+                    "Langsung membubarkan perusahaan dan memecat semua karyawan",
+                    "Melakukan audit evaluasi menyeluruh (Pivot / Evaluasi SWOT) terhadap efisiensi biaya, strategi pemasaran, dan kesesuaian produk dengan selera pasar",
+                    "Meminjam uang dengan bunga tinggi secara ilegal",
+                    "Menaikkan harga jual 500%",
+                    "Mengabaikan masalah dan menunggu keajaiban"
+                ],
+                correct: 1
+            },
+            {
+                question: "26. Perhatikan tahapan pembuatan produk kerajinan:\n1. Finishing\n2. Perencanaan desain\n3. Pengolahan bahan baku\n4. Pembentukan (forming)\nUrutan proses produksi kerajinan yang benar adalah...",
+                options: [
+                    "1 - 2 - 3 - 4",
+                    "2 - 3 - 4 - 1",
+                    "3 - 2 - 4 - 1",
+                    "4 - 3 - 2 - 1",
+                    "2 - 4 - 3 - 1"
+                ],
+                correct: 1
+            },
+            {
+                question: "27. Dalam konteks pemasaran online produk kerajinan, apa fungsi utama dari pemanfaatan fitur 'SEO' (Search Engine Optimization) pada website toko online?",
+                options: [
+                    "Membuat website menjadi sangat lambat diakses",
+                    "Meningkatkan visibilitas dan rangking halaman toko online di mesin pencari sehingga mudah ditemukan calon pembeli",
+                    "Menghapus ulasan negatif dari pelanggan",
+                    "Mengunci akses pengunjung dari luar negeri",
+                    "Memperbanyak virus komputer"
+                ],
+                correct: 1
+            },
+            {
+                question: "28. Mengapa aspek keselamatan kerja (K3) perlu direncanakan dengan baik dalam workshop kerajinan ukir atau anyaman?",
+                options: [
+                    "Untuk menambah kerumitan aturan kerja",
+                    "Mencegah terjadinya kecelakaan kerja dan melindungi kesehatan fisik perajin selama proses produksi",
+                    "Menghabiskan anggaran perusahaan",
+                    "Membuat perajin merasa tidak nyaman",
+                    "Sebagai formalitas belaka tanpa pengawasan"
+                ],
+                correct: 1
+            },
+            {
+                question: "29. Wirausahawan yang sukses dalam bidang kerajinan budaya nonbenda harus memiliki kreativitas tinggi. Ciri-ciri pemikiran kreatif (divergent thinking) adalah...",
+                options: [
+                    "Hanya memiliki satu cara pandang yang kaku",
+                    "Mampu menghasilkan banyak alternatif ide, sudut pandang baru, dan solusi unik atas suatu masalah",
+                    "Menolak segala bentuk masukan dari orang lain",
+                    "Selalu mengikuti arus tanpa ada pembeda",
+                    "Takut menghadapi risiko kegagalan"
+                ],
+                correct: 1
+            },
+            {
+                question: "30. Evaluasi berkala terhadap kepuasan pelanggan (Customer Satisfaction) pada produk kerajinan dapat dilakukan melalui...",
+                options: [
+                    "Mengabaikan kritik dan saran pembeli",
+                    "Menganalisis ulasan pembeli, rating toko online, serta survei umpan balik secara berkala",
+                    "Menutup kolom komentar di media sosial",
+                    "Memarahi pelanggan yang protes",
+                    "Menaikkan harga secara sepihak"
+                ],
+                correct: 1
+            },
+            {
+                question: "31. Budaya nonbenda sering kali mengandung petuah moral dan filosofi leluhur. Ketika nilai tersebut disematkan pada produk kerajinan fungsional, nilai tambah (value added) apa yang paling menonjol bagi konsumen?",
+                options: [
+                    "Nilai guna praktis semata tanpa makna",
+                    "Nilai edukasi, estetika, dan ikatan emosional/historis yang mendalam",
+                    "Nilai berat barang yang bertambah",
+                    "Nilai susut bahan baku",
+                    "Nilai pajak yang lebih tinggi"
+                ],
+                correct: 1
+            },
+            {
+                question: "32. Dalam menyusun laporan keuangan sederhana bagi usaha kerajinan rumahan, komponen utama yang harus dicatat adalah...",
+                options: [
+                    "Laporan cuaca harian dan jadwal libur",
+                    "Laporan laba rugi, neraca keuangan, dan laporan arus kas (cash flow)",
+                    "Daftar nama tetangga sekitar workshop",
+                    "Jumlah kendaraan pribadi pemilik",
+                    "Catatan hantu atau mitos lokal"
+                ],
+                correct: 1
+            },
+            {
+                question: "33. Strategi promosi personal selling (penjualan tatap muka) sangat efektif dalam memasarkan produk kerajinan bernilai seni tinggi karena...",
+                options: [
+                    "Penjual dapat langsung menjelaskan narasi filosofis budaya, mendemonstrasikan keunggulan produk, dan membangun relasi emosional dengan pembeli",
+                    "Tidak memerlukan biaya transportasi sama sekali",
+                    "Dapat dilakukan sambil tidur",
+                    "Jumlah pembeli langsung jutaan orang dalam satu detik",
+                    "Tidak perlu menguasai product knowledge"
+                ],
+                correct: 0
+            },
+            {
+                question: "34. Apa yang dimaksud dengan 'Minimum Viable Product' (MVP) dalam pengembangan awal usaha rintisan kerajinan?",
+                options: [
+                    "Produk dengan harga paling mahal di dunia",
+                    "Versi dasar dari produk kerajinan yang memiliki fitur minimum namun sudah dapat diuji pasarkan untuk mendapatkan umpan balik nyata dari konsumen",
+                    "Produk rusak yang gagal diproduksi",
+                    "Kerajinan tiruan dari plastik murah",
+                    "Proyek rahasia militer"
+                ],
+                correct: 1
+            },
+            {
+                question: "35. Peran lembaga keuangan atau perbankan bagi wirausahawan kerajinan skala mikro yang sedang berkembang adalah...",
+                options: [
+                    "Menghambat kelancaran bisnis",
+                    "Menyediakan fasilitas permodalan (kredit usaha rakyat) dan konsultasi manajemen keuangan",
+                    "Mengambil alih seluruh kepemilikan usaha",
+                    "Menaikkan suku bunga hingga 100%",
+                    "Menutup akses pasar ekspor"
+                ],
+                correct: 1
+            },
+            {
+                question: "36. Ketika merancang kemasan untuk kerajinan pecah belah (seperti keramik bermotif cerita rakyat), faktor utama yang wajib diprioritaskan dalam perencanaan teknik adalah...",
+                options: [
+                    "Keindahan warna kemasan saja tanpa pelindung",
+                    "Keamanan struktural kemasan (bubble wrap, kardus tebal, bantalan kedap benturan) agar produk aman sampai tujuan",
+                    "Ukuran kemasan yang sangat besar dan berat",
+                    "Harga kemasan yang paling murah meskipun tipis",
+                    "Penggunaan plastik sekali pakai yang mencemari lingkungan"
+                ],
+                correct: 1
+            },
+            {
+                question: "37. Analisis tren pasar (Market Trend Analysis) dalam kewirausahaan kerajinan berfungsi untuk...",
+                options: [
+                    "Memprediksi masa lalu suatu kebudayaan",
+                    "Mengetahui arah perubahan selera, gaya hidup, dan preferensi konsumen saat ini dan masa depan",
+                    "Menghilangkan persaingan bisnis secara paksa",
+                    "Menurunkan jumlah produksi secara drastis",
+                    "Menghindari inovasi produk"
+                ],
+                correct: 1
+            },
+            {
+                question: "38. Karakteristik wirausahawan yang memiliki 'Locus of Control' internal yang baik adalah...",
+                options: [
+                    "Selalu menyalahkan nasib buruk dan orang lain atas kegagalan usahanya",
+                    "Meyakini bahwa keberhasilan atau kegagalan usaha sangat ditentukan oleh kerja keras, usaha, dan keputusan diri sendiri",
+                    "Bergantung sepenuhnya pada bantuan pemerintah",
+                    "Tidak mau belajar dari kesalahan masa lalu",
+                    "Menyerah pada rintangan pertama"
+                ],
+                correct: 1
+            },
+            {
+                question: "39. Manakah bentuk kolaborasi yang paling strategis antara perajin lokal dengan seniman digital modern di era industri kreatif?",
+                options: [
+                    "Saling menjatuhkan reputasi di media sosial",
+                    "Menggabungkan kerajinan fisik tradisional dengan teknologi augmented reality (AR) sehingga saat kemasan di-scan via HP, muncul animasi cerita rakyat 3D",
+                    "Membuang seluruh warisan budaya masa lalu",
+                    "Memproduksi barang tiruan massal tanpa lisensi",
+                    "Menjual produk tanpa kemasan"
+                ],
+                correct: 1
+            },
+            {
+                question: "40. Sebagai evaluasi akhir perencanaan wirausaha kerajinan budaya nonbenda, indikator utama bahwa sebuah bisnis dinyatakan 'feasible' (layak) secara finansial adalah...",
+                options: [
+                    "Memiliki jumlah utang bank yang sangat menumpuk",
+                    "Memiliki proyeksi Net Present Value (NPV) bernilai positif, Internal Rate of Return (IRR) di atas suku bunga bank, dan Payback Period yang cepat",
+                    "Mengalami kerugian operasional setiap bulan",
+                    "Tidak memiliki catatan pembukuan sama sekali",
+                    "Jumlah karyawan keluar masuk sangat tinggi"
+                ],
+                correct: 1
+            }
+        ];
+
+        let currentQuizIndex = 0; 
+        let quizScore = 0; 
+        let selectedQuizOption = null;
+        let studentAnswers = {};
+
+        function initQuiz() {
+            currentQuizIndex = 0; 
+            quizScore = 0; 
+            selectedQuizOption = null;
+            studentAnswers = {};
+            renderQuizQuestion();
+        }
+
+        function renderQuizQuestion() {
+            const qNum = document.getElementById('quiz-question-number');
+            const qText = document.getElementById('quiz-question-text');
+            const c = document.getElementById('quiz-options-container');
+            const btnPrev = document.getElementById('btn-quiz-prev');
+            const btnSubmit = document.getElementById('btn-quiz-submit');
+
+            if (!qNum || !qText || !c) return;
+
+            qNum.innerText = `Soal ${currentQuizIndex + 1} dari ${quizQuestions.length}`;
+            qText.innerText = quizQuestions[currentQuizIndex].question;
+            c.innerHTML = '';
+
+            // Tampilkan tombol "Sebelumnya" mulai soal ke-2
+            if (currentQuizIndex > 0) {
+                btnPrev.classList.remove('hidden');
+            } else {
+                btnPrev.classList.add('hidden');
+            }
+
+            // Ubah teks tombol jika soal terakhir
+            if (currentQuizIndex === quizQuestions.length - 1) {
+                btnSubmit.innerText = "Selesaikan Kuis & Lihat Hasil 🏁";
+            } else {
+                btnSubmit.innerText = "Jawab & Lanjut →";
+            }
+
+            const currentQ = quizQuestions[currentQuizIndex];
+            currentQ.options.forEach((optText, i) => {
+                const isSelected = studentAnswers[currentQuizIndex] === i;
+                const borderClass = isSelected ? 'border-amber-500 bg-amber-50/50 ring-2 ring-amber-400' : 'border-slate-200 hover:border-slate-300';
+                
+                c.innerHTML += `
+                    <button type="button" onclick="selectQuizOption(${i}, this)" class="w-full text-left p-4 rounded-xl border ${borderClass} transition-all font-medium text-slate-800 flex items-start space-x-3">
+                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-xs font-bold text-slate-700 shrink-0">${String.fromCharCode(65 + i)}</span>
+                        <span class="flex-1 text-sm sm:text-base">${optText}</span>
+                    </button>
+                `;
+            });
+
+            // Aktifkan tombol submit jika soal ini sudah pernah dijawab sebelumnya
+            if (studentAnswers[currentQuizIndex] !== undefined) {
+                selectedQuizOption = studentAnswers[currentQuizIndex];
+                btnSubmit.disabled = false;
+            } else {
+                selectedQuizOption = null;
+                btnSubmit.disabled = true;
+            }
+        }
+
+        function selectQuizOption(i, el) {
+            selectedQuizOption = i;
+            studentAnswers[currentQuizIndex] = i;
+
+            document.querySelectorAll('#quiz-options-container button').forEach(b => {
+                b.classList.remove('border-amber-500', 'bg-amber-50/50', 'ring-2', 'ring-amber-400');
+                b.classList.add('border-slate-200');
+            });
+            el.classList.remove('border-slate-200');
+            el.classList.add('border-amber-500', 'bg-amber-50/50', 'ring-2', 'ring-amber-400');
+            
+            document.getElementById('btn-quiz-submit').disabled = false;
+        }
+
+        function prevQuizQuestion() {
+            if (currentQuizIndex > 0) {
+                currentQuizIndex--;
+                renderQuizQuestion();
+            }
+        }
+
+        function submitQuizAnswer() {
+            if (selectedQuizOption === null && studentAnswers[currentQuizIndex] === undefined) return;
+
+            studentAnswers[currentQuizIndex] = selectedQuizOption !== null ? selectedQuizOption : studentAnswers[currentQuizIndex];
+
+            if (currentQuizIndex < quizQuestions.length - 1) {
+                currentQuizIndex++;
+                renderQuizQuestion();
+            } else {
+                calculateAndShowResults();
+            }
+        }
+
+        function calculateAndShowResults() {
+            stopQuizTimer();
+            let correctCount = 0;
+            quizQuestions.forEach((q, idx) => {
+                if (studentAnswers[idx] === q.correct) {
+                    correctCount++;
+                }
+            });
+
+            quizScore = Math.round((correctCount / quizQuestions.length) * 100);
+            showQuizResults(correctCount);
+        }
+
+        async function showQuizResults(correctCount) {
+            if (currentUser) {
+                try {
+                    await saveQuizResultOnline({ 
+                        nis: currentUser.nis, 
+                        nama: currentUser.nama, 
+                        skor: quizScore 
+                    });
+                } catch (e) {}
+            }
+
+            document.getElementById('quiz-question-box').classList.add('hidden');
+            document.getElementById('quiz-action-bar').classList.add('hidden');
+            document.getElementById('quiz-result-dashboard').classList.remove('hidden');
+            document.getElementById('final-score-val').innerText = quizScore;
+            
+            const statusText = document.getElementById('final-status-text');
+            statusText.innerHTML = `Jawaban Benar: <strong>${correctCount}</strong> dari ${quizQuestions.length} soal.<br>${quizScore >= 75 ? '🎉 Luar biasa! Anda lulus Kriteria Ketuntasan Minimal (KKM).' : '💪 Tetap semangat belajar kembali materi Wirausaha Kerajinan Budaya Non Benda!'}`;
+        }
+
+        function restartQuiz() { 
+            document.getElementById('quiz-question-box').classList.remove('hidden');
+            document.getElementById('quiz-action-bar').classList.remove('hidden');
+            document.getElementById('quiz-result-dashboard').classList.add('hidden');
+            initQuiz(); 
+            startQuizTimer(); 
+        }
+
         const QUIZ_DURATION_MS = 60 * 60 * 1000;
         let quizTimerInterval = null;
         let quizDeadline = null;
@@ -490,7 +1104,6 @@ async function saveQuizResultOnline(result) {
             });
         }
 
-        // FUNGSI RESET YANG DIPERBAIKI (MEMBERSIHKAN LOKAL DAN ONLINE SUPABASE)
         async function resetStudentAttempt(nis) {
             const cleanNis = String(nis || "").trim();
             const student = studentDatabase.find(s => String(s.nis).trim() === cleanNis);
@@ -505,7 +1118,6 @@ async function saveQuizResultOnline(result) {
             }
             
             try {
-                // 1. Bersihkan seluruh penanda sesi & penguncian lokal
                 localStorage.removeItem(`pkwu_quiz_completed_${cleanNis}`);
                 localStorage.removeItem(needsTeacherResetKey(cleanNis));
                 localStorage.removeItem(`pkwu_quiz_tab_violation_${cleanNis}`);
@@ -517,7 +1129,6 @@ async function saveQuizResultOnline(result) {
                     localStorage.removeItem(activeSessionKey());
                 }
 
-                // 2. Hapus data nilai secara online di Supabase
                 if (supabaseClient) {
                     const { error } = await supabaseClient
                         .from("hasil_kuis_bk")
@@ -535,46 +1146,6 @@ async function saveQuizResultOnline(result) {
                 alert('Gagal mereset: ' + (e.message || e));
             }
         }
-
-        const quizQuestions = [
-            { question: "Seorang siswa membuat kerajinan dari bahan limbah...", options: ["A", "B", "C", "D", "E"], correct: 1 }
-        ];
-        let currentQuizIndex = 0, quizScore = 0, selectedQuizOption = null;
-
-        function initQuiz() {
-            currentQuizIndex = 0; quizScore = 0; selectedQuizOption = null;
-            renderQuizQuestion();
-        }
-        function renderQuizQuestion() {
-            document.getElementById('quiz-question-text').innerText = quizQuestions[currentQuizIndex].question;
-            const c = document.getElementById('quiz-options-container'); c.innerHTML = '';
-            ["Opsi A", "Opsi B", "Opsi C", "Opsi D"].forEach((opt, i) => {
-                c.innerHTML += `<button onclick="selectQuizOption(${i}, this)" class="w-full text-left p-4 rounded-xl border border-slate-200">${opt}</button>`;
-            });
-        }
-        function selectQuizOption(i, el) {
-            selectedQuizOption = i;
-            document.querySelectorAll('#quiz-options-container button').forEach(b => b.classList.remove('border-amber-500'));
-            el.classList.add('border-amber-500');
-            document.getElementById('btn-quiz-submit').disabled = false;
-        }
-        function submitQuizAnswer() {
-            quizScore = 100;
-            showQuizResults();
-        }
-        async function showQuizResults() {
-            stopQuizTimer();
-            if (currentUser) {
-                try {
-                    await saveQuizResultOnline({ nis: currentUser.nis, nama: currentUser.nama, skor: quizScore });
-                } catch (e) {}
-            }
-            document.getElementById('quiz-question-box').classList.add('hidden');
-            document.getElementById('quiz-action-bar').classList.add('hidden');
-            document.getElementById('quiz-result-dashboard').classList.remove('hidden');
-            document.getElementById('final-score-val').innerText = quizScore;
-        }
-        function restartQuiz() { initQuiz(); startQuizTimer(); }
 
         window.addEventListener('DOMContentLoaded', () => {
             setupSecurityGuards();
