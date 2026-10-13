@@ -1151,9 +1151,17 @@ async function saveQuizResultOnline(result) {
             const key = `pkwu_quiz_deadline_${currentUser.nis}`;
             let storedDeadline = 0;
             try { storedDeadline = Number(localStorage.getItem(key) || 0); } catch (e) {}
-            quizDeadline = storedDeadline > 0 ? storedDeadline : Date.now() + QUIZ_DURATION_MS;
-            try { if (!storedDeadline) localStorage.setItem(key, String(quizDeadline)); } catch (e) {}
-            
+
+            // Jangan langsung menyelesaikan kuis saat login ulang karena deadline lama
+            // dari sesi/logout sebelumnya sudah kedaluwarsa. Hasil yang benar-benar
+            // selesai tetap dikunci oleh hasCompletedAttempt() melalui hasil online.
+            if (!storedDeadline || storedDeadline <= Date.now()) {
+                quizDeadline = Date.now() + QUIZ_DURATION_MS;
+                try { localStorage.setItem(key, String(quizDeadline)); } catch (e) {}
+            } else {
+                quizDeadline = storedDeadline;
+            }
+
             updateQuizTimer();
             quizTimerInterval = setInterval(updateQuizTimer, 1000);
         }
@@ -1248,7 +1256,10 @@ async function saveQuizResultOnline(result) {
 
         function handleLogout() {
             if (currentUser) {
-                try { localStorage.removeItem(activeSessionKey()); } catch (e) {}
+                try {
+                    localStorage.removeItem(activeSessionKey());
+                    localStorage.removeItem(`pkwu_quiz_deadline_${currentUser.nis}`);
+                } catch (e) {}
             }
             currentUser = null;
             stopQuizTimer();
