@@ -1205,17 +1205,26 @@ async function saveQuizResultOnline(result) {
                 return;
             }
 
-            if (localStorage.getItem(needsTeacherResetKey(foundStudent.nis))) {
-                errorBox.textContent = '⛔ Akses dikunci karena sebelumnya Anda keluar dari halaman atau membuka tab lain. Minta guru mereset akses.';
+            // Periksa status reset online lebih dahulu. Reset dilakukan di perangkat guru,
+            // sehingga localStorage pada perangkat siswa tidak dapat dihapus langsung oleh guru.
+            const completedOrLocked = await hasCompletedAttempt(foundStudent.nis);
+            if (completedOrLocked) {
+                const localLock = localStorage.getItem(needsTeacherResetKey(foundStudent.nis));
+                errorBox.textContent = localLock
+                    ? '⛔ Akses masih terkunci. Status reset online belum terbaca sebagai diizinkan. Muat ulang halaman; jika tetap terkunci, minta guru memeriksa koneksi Supabase.'
+                    : '⛔ NISN ini sudah menyelesaikan ulangan atau aksesnya masih terkunci.';
                 errorBox.classList.remove('hidden');
                 return;
             }
 
-            if (await hasCompletedAttempt(foundStudent.nis)) {
-                errorBox.textContent = '⛔ NISN ini sudah menyelesaikan ulangan.';
-                errorBox.classList.remove('hidden');
-                return;
-            }
+            // Jika status reset online sudah false/tidak ada hasil lama, hapus kunci lokal
+            // sebagai fallback agar siswa dapat login lagi pada perangkatnya sendiri.
+            try {
+                localStorage.removeItem(needsTeacherResetKey(foundStudent.nis));
+                localStorage.removeItem(`pkwu_quiz_completed_${foundStudent.nis}`);
+                localStorage.removeItem(`pkwu_quiz_tab_violation_${foundStudent.nis}`);
+                localStorage.removeItem(resetAuthorizedKey(foundStudent.nis));
+            } catch (storageError) { console.warn('Pembersihan kunci lokal dilewati:', storageError); }
 
             currentUser = foundStudent;
             try { 
