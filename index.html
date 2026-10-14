@@ -60,6 +60,8 @@ async function saveQuizResultOnline(result) {
 
 <!-- Excel export library -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Word DOCX reader for importing teacher question files -->
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
 
 <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -221,6 +223,9 @@ async function saveQuizResultOnline(result) {
                     <button type="button" data-teacher-nav="hasil" onclick="showTeacherSection('hasil')" class="teacher-nav w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left">
                         <span class="text-lg">📊</span><span>Hasil Ujian</span>
                     </button>
+                    <button type="button" data-teacher-nav="soal" onclick="showTeacherSection('soal')" class="teacher-nav w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left">
+                        <span class="text-lg">📝</span><span>Tambah Soal (Word)</span>
+                    </button>
                     <div class="px-3 pt-6 pb-2 text-[11px] font-bold tracking-widest uppercase text-slate-500">OPERASIONAL</div>
                     <button type="button" onclick="refreshTeacherDashboard()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left"><span class="text-lg">↻</span><span>Perbarui Data</span></button>
                     <button type="button" onclick="exportTeacherExcel()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold text-left"><span class="text-lg">⬇</span><span>Ekspor Excel</span></button>
@@ -280,6 +285,35 @@ async function saveQuizResultOnline(result) {
                             <thead class="bg-slate-100 text-black text-xs uppercase"><tr><th class="px-4 py-3">No</th><th class="px-4 py-3">Nama Siswa</th><th class="px-4 py-3">NISN</th><th class="px-4 py-3 text-center">Skor Akhir</th><th class="px-4 py-3 text-center">Akses Ulangan</th></tr></thead>
                             <tbody id="teacher-results-tbody"></tbody>
                         </table>
+                    </div>
+                    <div id="teacher-soal-section" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
+                        <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+                            <div><h3 class="text-xl font-extrabold text-slate-900">Tambah Soal dari Microsoft Word</h3><p class="text-sm text-slate-600 mt-1">Unggah dokumen Word (.docx) untuk menggantikan seluruh soal ujian aktif.</p></div>
+                            <span class="rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-2">IMPORT SOAL</span>
+                        </div>
+                        <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-5 text-sm text-slate-800">
+                            <p class="font-bold mb-2">Format dokumen Word yang harus digunakan</p>
+                            <pre class="whitespace-pre-wrap font-sans text-sm">1. Teks pertanyaan ditulis di sini
+A. Pilihan jawaban pertama
+B. Pilihan jawaban kedua
+C. Pilihan jawaban ketiga
+D. Pilihan jawaban keempat
+E. Pilihan jawaban kelima
+Kunci: B</pre>
+                            <p class="mt-2 text-slate-600">Setiap soal harus memiliki pilihan A–E dan satu baris kunci jawaban (contoh: <b>Kunci: B</b>). File yang didukung adalah .docx, bukan .doc atau PDF.</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3 mb-4">
+                            <input id="question-word-file" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="max-w-full text-sm text-slate-700 border border-slate-300 rounded-lg p-2" />
+                            <button type="button" onclick="importQuestionsWord()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold">⬆ Import Soal Word</button>
+                            <button type="button" onclick="downloadQuestionTemplateWord()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-bold">⬇ Unduh Template Word</button>
+                        </div>
+                        <div id="question-import-message" class="hidden rounded-lg p-3 mb-4 text-sm" role="status"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                            <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><div class="text-sm text-slate-500">Total soal ujian</div><div id="question-total-count" class="text-2xl font-extrabold text-slate-900">0</div></div>
+                            <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><div class="text-sm text-slate-500">Soal bawaan</div><div id="question-base-count" class="text-2xl font-extrabold text-slate-900">0</div></div>
+                            <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><div class="text-sm text-slate-500">Soal dari Word</div><div id="question-extra-count" class="text-2xl font-extrabold text-slate-900">0</div></div>
+                        </div>
+                        <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">Penting: impor Word akan menggantikan seluruh bank soal aktif. Pastikan semua soal, pilihan A–E, dan kunci jawaban benar. Jangan impor saat siswa sedang mengerjakan ujian. Soal hanya dianggap terbit jika penyimpanan Supabase berhasil.</p>
                     </div>
                 </div>
             </main>
@@ -363,7 +397,7 @@ async function saveQuizResultOnline(result) {
         ];
 
         // 40 Soal Pilihan Ganda HOTS Wirausaha Kerajinan Budaya Non Benda
-        const quizQuestions = [
+        let quizQuestions = [
             {
                 question: "1. Budaya nonbenda meliputi segala bentuk tradisi lisan, adat istiadat, nyanyian rakyat, tarian, hingga kepercayaan lokal yang diwariskan secara turun-temurun. Ketika seorang wirausahawan ingin mentransformasikan nilai filosofis tarian tradisional ke dalam produk kerajinan fungsional, langkah awal analisis perencanaan usaha (6M) yang paling krusial adalah...",
                 options: [
@@ -805,6 +839,96 @@ async function saveQuizResultOnline(result) {
                 correct: 1
             }
         ];
+        // Soal bawaan lama dipertahankan hanya sebagai arsip kode, tidak lagi diberikan kepada siswa.
+        const legacyQuizQuestions = quizQuestions.map(q => ({...q, options: [...q.options]}));
+        const baseQuizQuestions = [];
+        let extraQuizQuestions = [];
+        // Bank soal aktif hanya berasal dari versi yang dipublikasikan di Supabase.
+        quizQuestions = [];
+        let questionBankLoaded = false;
+        let questionBankLoadPromise = null;
+
+        function questionSignature(q) {
+            return `${String(q.question || '').trim()}|${(q.options || []).map(x => String(x).trim()).join('|')}|${Number(q.correct)}`.toLowerCase();
+        }
+
+        // Muat bank soal aktif dari Supabase. Tidak ada fallback ke soal bawaan atau cache lokal.
+        async function loadExtraQuestionsFromSupabase(force = false) {
+            if (!supabaseClient) return { ok: false, reason: 'Koneksi Supabase belum tersedia.' };
+            if (questionBankLoaded && !force) return { ok: true, count: extraQuizQuestions.length };
+            if (questionBankLoadPromise && !force) return questionBankLoadPromise;
+            questionBankLoadPromise = (async () => {
+                const { data, error } = await supabaseClient
+                    .from('pkwu_bank_soal')
+                    .select('pertanyaan,pilihan,kunci_jawaban')
+                    .eq('aktif', true)
+                    .order('id', { ascending: true });
+                if (error) throw error;
+                const fromCloud = (data || []).map(row => ({
+                    question: String(row.pertanyaan || ''),
+                    options: Array.isArray(row.pilihan) ? row.pilihan : [],
+                    correct: ({A:0,B:1,C:2,D:3,E:4})[String(row.kunci_jawaban || '').toUpperCase()]
+                })).filter(q => q.question && q.options.length === 5 && Number.isInteger(q.correct));
+                extraQuizQuestions = fromCloud;
+                quizQuestions = [...fromCloud];
+                questionBankLoaded = true;
+                updateQuestionCounts();
+                return { ok: true, count: extraQuizQuestions.length };
+            })().catch(err => {
+                console.error('Gagal memuat bank soal Supabase:', err);
+                return { ok: false, reason: err?.message || String(err) };
+            }).finally(() => { questionBankLoadPromise = null; });
+            return questionBankLoadPromise;
+        }
+
+        async function replaceQuestionBankInSupabase(questions) {
+            if (!supabaseClient) throw new Error('Koneksi Supabase belum dikonfigurasi.');
+            if (!questions.length) throw new Error('Dokumen tidak berisi soal valid.');
+            const payload = questions.map(q => ({
+                pertanyaan: q.question,
+                pilihan: q.options,
+                kunci_jawaban: ['A','B','C','D','E'][q.correct],
+                aktif: false,
+                signature: questionSignature(q)
+            }));
+            // Tahap 1: simpan seluruh soal baru dalam keadaan nonaktif terlebih dahulu.
+            const { error: upsertError } = await supabaseClient
+                .from('pkwu_bank_soal')
+                .upsert(payload, { onConflict: 'signature', ignoreDuplicates: false });
+            if (upsertError) throw upsertError;
+
+            // Tahap 2: nonaktifkan bank lama, lalu aktifkan hanya soal dari dokumen ini.
+            const { error: deactivateError } = await supabaseClient
+                .from('pkwu_bank_soal').update({ aktif: false }).eq('aktif', true);
+            if (deactivateError) throw deactivateError;
+            const signatures = payload.map(row => row.signature);
+            const { error: activateError } = await supabaseClient
+                .from('pkwu_bank_soal').update({ aktif: true }).in('signature', signatures);
+            if (activateError) throw activateError;
+
+            // Verifikasi bahwa bank aktif di cloud sama dengan jumlah soal yang diimpor.
+            const { data, error: verifyError } = await supabaseClient
+                .from('pkwu_bank_soal').select('id').eq('aktif', true);
+            if (verifyError) throw verifyError;
+            if (!data || data.length !== questions.length) {
+                throw new Error(`Verifikasi bank soal gagal. Diharapkan ${questions.length} soal aktif, ditemukan ${data?.length ?? 0}.`);
+            }
+        }
+
+        function loadSavedExtraQuestions() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pkwu_extra_questions') || '[]');
+                return Array.isArray(saved) ? saved.filter(q => q && typeof q.question === 'string' && Array.isArray(q.options) && q.options.length === 5 && Number.isInteger(q.correct) && q.correct >= 0 && q.correct < 5) : [];
+            } catch (e) { return []; }
+        }
+        function updateQuestionCounts() {
+            const total = document.getElementById('question-total-count');
+            const base = document.getElementById('question-base-count');
+            const extra = document.getElementById('question-extra-count');
+            if (total) total.textContent = quizQuestions.length;
+            if (base) base.textContent = baseQuizQuestions.length;
+            if (extra) extra.textContent = extraQuizQuestions.length;
+        }
 
         let currentQuizIndex = 0; 
         let quizScore = 0; 
@@ -1265,6 +1389,16 @@ async function saveQuizResultOnline(result) {
                 return;
             }
 
+            // Wajib memuat bank soal aktif dari Supabase; jangan lanjut dengan soal bawaan/cache.
+            const bankStatus = await loadExtraQuestionsFromSupabase(true);
+            if (!bankStatus.ok || !quizQuestions.length) {
+                errorBox.textContent = !bankStatus.ok
+                    ? '❌ Bank soal online gagal dimuat. Periksa koneksi internet atau pengaturan Supabase, lalu coba lagi.'
+                    : '❌ Belum ada bank soal aktif. Minta guru mengimpor dan menerbitkan soal Word terlebih dahulu.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
             // Periksa status reset online lebih dahulu. Reset dilakukan di perangkat guru,
             // sehingga localStorage pada perangkat siswa tidak dapat dihapus langsung oleh guru.
             const completedOrLocked = await hasCompletedAttempt(foundStudent.nis);
@@ -1365,7 +1499,7 @@ async function saveQuizResultOnline(result) {
             catch (e) { alert('Daftar peserta tidak dapat disimpan pada browser ini.'); }
         }
         function showTeacherSection(section) {
-            ['peserta','progres','hasil'].forEach(k => {
+            ['peserta','progres','hasil','soal'].forEach(k => {
                 const el = document.getElementById('teacher-' + k + '-section');
                 if (el) el.classList.toggle('hidden', k !== section);
             });
@@ -1378,7 +1512,84 @@ async function saveQuizResultOnline(result) {
                 else btn.classList.add('hover:bg-slate-800');
             });
             if (section === 'peserta') renderParticipantsTable();
+            if (section === 'soal') {
+                updateQuestionCounts();
+                loadExtraQuestionsFromSupabase(true).then(status => {
+                    updateQuestionCounts();
+                    if (status.ok) showQuestionImportMessage(`Bank soal aktif dari Supabase: ${quizQuestions.length} soal. Impor Word berikutnya akan menggantikan seluruh soal ini.`, true);
+                    else showQuestionImportMessage('Bank soal belum dapat dimuat dari Supabase: ' + status.reason);
+                });
+            }
         }
+        function showQuestionImportMessage(message, success = false) {
+            const box = document.getElementById('question-import-message');
+            if (!box) return;
+            box.textContent = message;
+            box.className = 'rounded-lg p-3 mb-4 text-sm ' + (success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200');
+        }
+
+        function downloadQuestionTemplateWord() {
+            const content = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif"><h1>Template Soal CBT PKWU</h1><p>Petunjuk: satu soal berisi teks pertanyaan, lima pilihan A–E, dan kunci jawaban. Duplikat pola berikut untuk soal berikutnya.</p><p><b>1. Tulis teks pertanyaan di sini?</b><br>A. Pilihan jawaban A<br>B. Pilihan jawaban B<br>C. Pilihan jawaban C<br>D. Pilihan jawaban D<br>E. Pilihan jawaban E<br><b>Kunci: B</b></p><p><b>2. Tulis teks pertanyaan berikutnya?</b><br>A. Pilihan jawaban A<br>B. Pilihan jawaban B<br>C. Pilihan jawaban C<br>D. Pilihan jawaban D<br>E. Pilihan jawaban E<br><b>Kunci: D</b></p></body></html>`;
+            const blob = new Blob(['\ufeff', content], {type:'application/msword'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'Template_Soal_CBT_PKWU.doc';
+            document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        }
+
+        async function importQuestionsWord() {
+            const file = document.getElementById('question-word-file')?.files?.[0];
+            if (!file) { showQuestionImportMessage('Pilih file Word (.docx) terlebih dahulu.'); return; }
+            if (!/\.docx$/i.test(file.name)) { showQuestionImportMessage('Format belum didukung. Simpan dokumen sebagai Word Document (*.docx), lalu unggah kembali.'); return; }
+            if (!window.mammoth) { showQuestionImportMessage('Pembaca Word belum termuat. Periksa koneksi internet, lalu coba kembali.'); return; }
+            try {
+                const result = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
+                const text = (result.value || '').replace(/\r/g, '').replace(/[\u00a0]/g, ' ');
+                const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+                const parsed = [];
+                let current = null;
+                const flush = () => {
+                    if (!current) return;
+                    if (current.question && current.options.filter(Boolean).length === 5 && current.correct !== null) {
+                        parsed.push({question: current.question, options: current.options, correct: current.correct});
+                    }
+                    current = null;
+                };
+                for (const line of lines) {
+                    const qMatch = line.match(/^\s*(?:soal\s*)?(\d{1,3})\s*[.)\-:]\s*(.+)$/i);
+                    const optMatch = line.match(/^\s*([A-E])\s*[.)\-:]\s*(.+)$/i);
+                    const keyMatch = line.match(/^\s*(?:kunci(?:\s*jawaban)?|jawaban\s*benar)\s*[:=\-]\s*([A-E])\b/i);
+                    if (qMatch) {
+                        flush(); current = {question: qMatch[2].trim(), options: ['', '', '', '', ''], correct: null};
+                    } else if (current && optMatch) {
+                        current.options[optMatch[1].toUpperCase().charCodeAt(0) - 65] = optMatch[2].trim();
+                    } else if (current && keyMatch) {
+                        current.correct = keyMatch[1].toUpperCase().charCodeAt(0) - 65;
+                    } else if (current && current.correct === null && !current.options.some(Boolean)) {
+                        current.question += ' ' + line;
+                    }
+                }
+                flush();
+                if (!parsed.length) throw new Error('Tidak ditemukan soal valid. Gunakan format bernomor 1., pilihan A. sampai E., dan Kunci: B.');
+                const malformedCount = (text.match(/^\s*(?:soal\s*)?\d{1,3}\s*[.)\-:]/gim) || []).length - parsed.length;
+                const signatures = parsed.map(questionSignature);
+                if (new Set(signatures).size !== signatures.length) throw new Error('Dokumen berisi soal duplikat. Perbaiki duplikat sebelum mengganti bank soal.');
+                if (!supabaseClient) throw new Error('Koneksi Supabase belum dikonfigurasi. Tidak ada perubahan pada bank soal.');
+                // Validasi semua soal sebelum mengganti bank aktif. Soal Word menggantikan seluruh bank.
+                await replaceQuestionBankInSupabase(parsed);
+                extraQuizQuestions = [...parsed];
+                quizQuestions = [...parsed];
+                questionBankLoaded = true;
+                try { localStorage.removeItem('pkwu_extra_questions'); } catch(e) {}
+                updateQuestionCounts();
+                const extraNote = malformedCount > 0 ? ` ${malformedCount} soal dilewati karena formatnya belum lengkap.` : '';
+                showQuestionImportMessage(`Berhasil menerbitkan ${parsed.length} soal dari Word. Seluruh soal ujian aktif sekarang diganti dengan dokumen ini; 40 soal bawaan tidak digunakan.${extraNote} Siswa akan mengambil bank soal terbaru dari Supabase saat login.`, true);
+                document.getElementById('question-word-file').value = '';
+            } catch (err) {
+                console.error('Import soal Word gagal:', err);
+                showQuestionImportMessage('Import gagal: ' + (err.message || 'periksa format dokumen Word.'));
+            }
+        }
+
         function downloadStudentTemplate() {
             if (!window.XLSX) { alert('Pustaka Excel belum termuat.'); return; }
             const wb = XLSX.utils.book_new();
@@ -1639,6 +1850,7 @@ async function saveQuizResultOnline(result) {
 
         window.addEventListener('DOMContentLoaded', () => {
             setupSecurityGuards();
+            updateQuestionCounts();
             initQuiz();
         });
     </script>
