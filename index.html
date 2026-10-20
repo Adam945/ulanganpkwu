@@ -14,6 +14,25 @@ const supabaseClient = (SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.inc
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
+// Sesi guru hanya disimpan di memori halaman, tidak ditanam sebagai password di HTML.
+let teacherSessionToken = null;
+async function callCbtAdmin(action, payload = {}, token = null) {
+    const headers = {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/cbt-admin`, {
+        method: "POST", headers, body: JSON.stringify({ action, ...payload })
+    });
+    let data = {};
+    try { data = await response.json(); } catch (_) {}
+    if (!response.ok || data.ok !== true) {
+        throw new Error(data.error || `Permintaan ke server gagal (HTTP ${response.status}).`);
+    }
+    return data;
+}
+
 async function saveQuizResultOnline(result) {
     if (!supabaseClient) return { ok: false, reason: "not_configured" };
 
@@ -94,13 +113,14 @@ async function saveQuizResultOnline(result) {
             </div>
 
             <!-- Role Tab Switcher -->
-            <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+            <div class="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-xl">
                 <button type="button" id="tab-btn-siswa" onclick="switchLoginTab('siswa')" class="py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-tech-700 shadow">
                     🧑‍🎓 Siswa
                 </button>
                 <button type="button" id="tab-btn-guru" onclick="switchLoginTab('guru')" class="py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500">
                     👩‍🏫 Guru
                 </button>
+                <button type="button" id="tab-btn-admin" onclick="switchLoginTab('admin')" class="py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500">🛡️ Admin</button>
             </div>
 
             <!-- FORM LOGIN SISWA -->
@@ -131,6 +151,14 @@ async function saveQuizResultOnline(result) {
                 <button type="submit" class="w-full py-3.5 px-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold rounded-xl shadow-lg">
                     Masuk sebagai Guru &rarr;
                 </button>
+            </form>
+            <!-- Login administrator memakai Supabase Auth; form guru lama tetap dipertahankan -->
+            <form id="admin-login-form" onsubmit="handleAdminLogin(event)" class="hidden space-y-4">
+                <div><label for="admin-email-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Email Administrator</label><input type="email" id="admin-email-input" autocomplete="username" placeholder="Email administrator" required class="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-900 font-semibold outline-none"></div>
+                <div><label for="admin-password-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Kata Sandi</label><input type="password" id="admin-password-input" autocomplete="current-password" placeholder="Kata sandi administrator" required class="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-900 font-semibold outline-none"></div>
+                <div id="admin-login-error" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm"></div>
+                <button id="admin-login-submit" type="submit" class="w-full py-3.5 px-4 bg-slate-900 text-white font-bold rounded-xl shadow-lg">Masuk Dashboard Administrator →</button>
+                <p class="text-xs text-slate-500">Login admin menggunakan Supabase Auth. Login Guru lama tetap menggunakan cbt-admin.</p>
             </form>
         </div>
     </div>
@@ -197,6 +225,19 @@ async function saveQuizResultOnline(result) {
             </div>
         </div>
     </section>
+
+    <!-- DASHBOARD ADMINISTRATOR MULTI-MAPEL; semua perubahan melalui cbt-management -->
+    <section id="dashboard-admin" class="hidden min-h-screen bg-slate-100"><div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-sm font-bold text-blue-700">SISTEM CBT SEKOLAH</p><h2 class="text-3xl font-extrabold text-slate-900">Dashboard Administrator</h2><p id="admin-user-label" class="text-sm text-slate-600 mt-1"></p></div><button type="button" onclick="handleAdminLogout()" class="rounded-xl bg-red-600 px-4 py-2 text-white font-bold">Keluar</button></div>
+      <div id="admin-notice" class="hidden rounded-xl border p-3 text-sm"></div>
+      <div class="grid lg:grid-cols-2 gap-6">
+       <div class="bg-white rounded-2xl border p-5 space-y-4"><h3 class="text-xl font-extrabold">Buat Akun Guru</h3><p class="text-sm text-slate-500">Akun dibuat melalui Supabase Auth.</p><form id="admin-create-teacher-form" onsubmit="adminCreateTeacher(event)" class="space-y-3"><input id="new-teacher-name" class="w-full rounded-lg border p-3" placeholder="Nama lengkap guru" required><input id="new-teacher-email" type="email" class="w-full rounded-lg border p-3" placeholder="Email guru" required><input id="new-teacher-password" type="password" minlength="12" class="w-full rounded-lg border p-3" placeholder="Kata sandi sementara (minimal 12 karakter)" required><button class="rounded-lg bg-blue-700 px-4 py-3 font-bold text-white" type="submit">Buat Akun Guru</button></form></div>
+       <div class="bg-white rounded-2xl border p-5 space-y-4"><h3 class="text-xl font-extrabold">Tambah Mata Pelajaran</h3><form id="admin-create-subject-form" onsubmit="adminCreateSubject(event)" class="space-y-3"><input id="new-subject-code" class="w-full rounded-lg border p-3" placeholder="Kode, contoh: PKWU-X" required><input id="new-subject-name" class="w-full rounded-lg border p-3" placeholder="Nama mata pelajaran" required><input id="new-subject-grade" class="w-full rounded-lg border p-3" placeholder="Kelas, contoh: X" required><input id="new-subject-phase" class="w-full rounded-lg border p-3" placeholder="Fase, contoh: E"><button class="rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white" type="submit">Simpan Mata Pelajaran</button></form></div>
+      </div>
+      <div class="bg-white rounded-2xl border p-5 space-y-4"><div class="flex flex-wrap items-center justify-between gap-3"><h3 class="text-xl font-extrabold">Daftar Guru dan Status Akun</h3><button onclick="adminRefreshData()" class="rounded-lg bg-slate-800 px-4 py-2 text-white font-bold">Muat Ulang Data</button></div><div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100"><tr><th class="p-3">Nama / Email</th><th class="p-3">Status</th><th class="p-3">Aksi</th></tr></thead><tbody id="admin-teachers-table"><tr><td colspan="3" class="p-3">Belum dimuat.</td></tr></tbody></table></div></div>
+      <div class="bg-white rounded-2xl border p-5 space-y-4"><h3 class="text-xl font-extrabold">Daftar Mata Pelajaran dan Penugasan</h3><div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100"><tr><th class="p-3">Kode / Mata Pelajaran</th><th class="p-3">Kelas / Fase</th><th class="p-3">Guru</th><th class="p-3">Penugasan</th></tr></thead><tbody id="admin-subjects-table"><tr><td colspan="4" class="p-3">Belum dimuat.</td></tr></tbody></table></div></div>
+      <p class="text-xs text-slate-500">Tahap ini mencakup login admin, akun guru, mata pelajaran, status guru, dan penugasan. Pengelolaan ujian/soal/sertifikat multi-mapel dilanjutkan setelah tahap ini diuji. cbt-admin tidak diubah.</p>
+    </div></section>
 
     <!-- DASHBOARD GURU -->
     <section id="dashboard-guru" class="hidden min-h-screen bg-slate-100">
@@ -882,36 +923,18 @@ Kunci: B</pre>
         }
 
         async function replaceQuestionBankInSupabase(questions) {
-            if (!supabaseClient) throw new Error('Koneksi Supabase belum dikonfigurasi.');
+            if (!teacherSessionToken) throw new Error('Sesi guru tidak tersedia. Silakan login guru kembali.');
             if (!questions.length) throw new Error('Dokumen tidak berisi soal valid.');
             const payload = questions.map(q => ({
                 pertanyaan: q.question,
                 pilihan: q.options,
                 kunci_jawaban: ['A','B','C','D','E'][q.correct],
-                aktif: false,
                 signature: questionSignature(q)
             }));
-            // Tahap 1: simpan seluruh soal baru dalam keadaan nonaktif terlebih dahulu.
-            const { error: upsertError } = await supabaseClient
-                .from('pkwu_bank_soal')
-                .upsert(payload, { onConflict: 'signature', ignoreDuplicates: false });
-            if (upsertError) throw upsertError;
-
-            // Tahap 2: nonaktifkan bank lama, lalu aktifkan hanya soal dari dokumen ini.
-            const { error: deactivateError } = await supabaseClient
-                .from('pkwu_bank_soal').update({ aktif: false }).eq('aktif', true);
-            if (deactivateError) throw deactivateError;
-            const signatures = payload.map(row => row.signature);
-            const { error: activateError } = await supabaseClient
-                .from('pkwu_bank_soal').update({ aktif: true }).in('signature', signatures);
-            if (activateError) throw activateError;
-
-            // Verifikasi bahwa bank aktif di cloud sama dengan jumlah soal yang diimpor.
-            const { data, error: verifyError } = await supabaseClient
-                .from('pkwu_bank_soal').select('id').eq('aktif', true);
-            if (verifyError) throw verifyError;
-            if (!data || data.length !== questions.length) {
-                throw new Error(`Verifikasi bank soal gagal. Diharapkan ${questions.length} soal aktif, ditemukan ${data?.length ?? 0}.`);
+            // Perubahan bank soal dilakukan di server menggunakan sesi guru bertanda tangan.
+            const result = await callCbtAdmin('replace_bank', { questions: payload }, teacherSessionToken);
+            if (result.count !== questions.length) {
+                throw new Error(`Verifikasi bank soal gagal. Diharapkan ${questions.length} soal, server melaporkan ${result.count ?? 0}.`);
             }
         }
 
@@ -1362,18 +1385,12 @@ Kunci: B</pre>
         }
 
         function switchLoginTab(role) {
-            const btnSiswa = document.getElementById('tab-btn-siswa');
-            const btnGuru = document.getElementById('tab-btn-guru');
-            const formSiswa = document.getElementById('login-form');
-            const formGuru = document.getElementById('teacher-login-form');
-            if (role === 'guru') {
-                btnGuru.className = "py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-amber-700 shadow";
-                btnSiswa.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500";
-                formGuru.classList.remove('hidden'); formSiswa.classList.add('hidden');
-            } else {
-                btnSiswa.className = "py-2.5 rounded-lg text-sm font-bold transition-all bg-white text-tech-700 shadow";
-                btnGuru.className = "py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500";
-                formSiswa.classList.remove('hidden'); formGuru.classList.add('hidden');
+            const roles = {siswa:['tab-btn-siswa','login-form'],guru:['tab-btn-guru','teacher-login-form'],admin:['tab-btn-admin','admin-login-form']};
+            for (const [key,pair] of Object.entries(roles)) {
+                const btn=document.getElementById(pair[0]), form=document.getElementById(pair[1]); if(!btn||!form) continue;
+                const active=key===role;
+                btn.className=active ? `py-2.5 rounded-lg text-sm font-bold transition-all bg-white ${key==='siswa'?'text-tech-700':key==='guru'?'text-amber-700':'text-slate-900'} shadow` : 'py-2.5 rounded-lg text-sm font-bold transition-all text-slate-500';
+                form.classList.toggle('hidden',!active);
             }
         }
 
@@ -1458,10 +1475,53 @@ Kunci: B</pre>
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
-        function handleTeacherLogin(event) {
+        let adminAuthSession = null;
+        async function callCbtManagement(action, payload = {}) {
+            if (!adminAuthSession?.access_token) throw new Error('Sesi administrator tidak ditemukan. Silakan login kembali.');
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/cbt-management`, {method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':`Bearer ${adminAuthSession.access_token}`},body:JSON.stringify({action,...payload})});
+            let data={}; try { data=await response.json(); } catch(_) {}
+            if(!response.ok || data.ok!==true) throw new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
+            return data;
+        }
+        function showAdminNotice(message,ok=true){const box=document.getElementById('admin-notice');box.textContent=message;box.className=`rounded-xl border p-3 text-sm ${ok?'bg-emerald-50 border-emerald-200 text-emerald-800':'bg-red-50 border-red-200 text-red-800'}`;box.classList.remove('hidden');}
+        async function handleAdminLogin(event){
+            event.preventDefault(); const errBox=document.getElementById('admin-login-error'),submit=document.getElementById('admin-login-submit');errBox.classList.add('hidden');submit.disabled=true;submit.textContent='Memeriksa akun...';
+            try{
+                if(!supabaseClient) throw new Error('Konfigurasi Supabase belum tersedia.');
+                const {data,error}=await supabaseClient.auth.signInWithPassword({email:document.getElementById('admin-email-input').value.trim(),password:document.getElementById('admin-password-input').value});if(error)throw error;
+                if(!data.session||!data.user)throw new Error('Supabase tidak mengembalikan sesi login.');adminAuthSession=data.session;
+                const {data:profile,error:pe}=await supabaseClient.from('cbt_profiles').select('id,nama_lengkap,role,aktif').eq('id',data.user.id).maybeSingle();if(pe)throw new Error('Gagal memeriksa profil: '+pe.message);
+                if(!profile||profile.role!=='admin'||profile.aktif!==true){await supabaseClient.auth.signOut();adminAuthSession=null;throw new Error('Akun ini bukan administrator aktif. Periksa tabel cbt_profiles.');}
+                document.getElementById('admin-user-label').textContent=`${profile.nama_lengkap||data.user.email} • Administrator`;
+                document.getElementById('login-modal').classList.add('hidden');document.getElementById('dashboard-admin').classList.remove('hidden');document.getElementById('dashboard-guru').classList.add('hidden');document.getElementById('kuis').classList.add('hidden');document.getElementById('admin-login-form').reset();await adminRefreshData();
+            }catch(err){console.error('Login admin gagal:',err);errBox.textContent='Login administrator gagal: '+(err.message||String(err));errBox.classList.remove('hidden');try{if(supabaseClient)await supabaseClient.auth.signOut();}catch(_){}adminAuthSession=null;}
+            finally{submit.disabled=false;submit.textContent='Masuk Dashboard Administrator →';}
+        }
+        async function adminCreateTeacher(event){event.preventDefault();try{await callCbtManagement('create_teacher',{nama_lengkap:document.getElementById('new-teacher-name').value.trim(),email:document.getElementById('new-teacher-email').value.trim(),password:document.getElementById('new-teacher-password').value});document.getElementById('admin-create-teacher-form').reset();showAdminNotice('Akun guru berhasil dibuat.');await adminRefreshData();}catch(err){showAdminNotice('Gagal membuat akun guru: '+err.message,false);}}
+        async function adminCreateSubject(event){event.preventDefault();try{await callCbtManagement('create_subject',{kode:document.getElementById('new-subject-code').value.trim(),nama:document.getElementById('new-subject-name').value.trim(),jenjang_kelas:document.getElementById('new-subject-grade').value.trim(),fase:document.getElementById('new-subject-phase').value.trim()||null});document.getElementById('admin-create-subject-form').reset();showAdminNotice('Mata pelajaran berhasil ditambahkan.');await adminRefreshData();}catch(err){showAdminNotice('Gagal menambah mata pelajaran: '+err.message,false);}}
+        async function adminToggleTeacher(id,aktif){try{await callCbtManagement('set_teacher_active',{guru_id:id,aktif});showAdminNotice(aktif?'Akun guru diaktifkan.':'Akun guru dinonaktifkan.');await adminRefreshData();}catch(err){showAdminNotice('Gagal mengubah status guru: '+err.message,false);}}
+        async function adminAssignTeacher(mapelId,guruId){try{await callCbtManagement('assign_subject_teacher',{mapel_id:mapelId,guru_id:guruId||null});showAdminNotice('Penugasan guru berhasil diperbarui.');await adminRefreshData();}catch(err){showAdminNotice('Gagal menugaskan guru: '+err.message,false);}}
+        async function adminRefreshData(){try{
+            const [td,sd]=await Promise.all([callCbtManagement('list_teachers'),callCbtManagement('list_subjects')]);const teachers=td.teachers||td.data||[],subjects=sd.subjects||sd.data||[];window.adminTeachers=teachers;window.adminSubjects=subjects;
+            const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            document.getElementById('admin-teachers-table').innerHTML=teachers.length?teachers.map(t=>{const active=t.aktif===true;return `<tr class="border-t"><td class="p-3"><div class="font-bold">${esc(t.nama_lengkap||'-')}</div><div class="text-slate-500">${esc(t.email||t.id||'')}</div></td><td class="p-3">${active?'Aktif':'Nonaktif'}</td><td class="p-3"><button class="rounded px-3 py-1 ${active?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'} font-bold" onclick="adminToggleTeacher('${esc(t.id)}',${!active})">${active?'Nonaktifkan':'Aktifkan'}</button></td></tr>`}).join(''):'<tr><td colspan="3" class="p-3">Belum ada akun guru.</td></tr>';
+            document.getElementById('admin-subjects-table').innerHTML=subjects.length?subjects.map(m=>{const options=['<option value="">-- Belum ditugaskan --</option>',...teachers.map(t=>`<option value="${esc(t.id)}" ${m.guru_id===t.id?'selected':''}>${esc(t.nama_lengkap||t.email||t.id)}</option>`)].join('');return `<tr class="border-t"><td class="p-3"><b>${esc(m.kode||'')}</b><div>${esc(m.nama||'')}</div></td><td class="p-3">${esc(m.jenjang_kelas||'-')} / ${esc(m.fase||'-')}</td><td class="p-3">${esc(m.guru_nama||m.nama_guru||'-')}</td><td class="p-3"><select class="rounded border p-2 max-w-xs" onchange="adminAssignTeacher('${esc(m.id)}',this.value)">${options}</select></td></tr>`}).join(''):'<tr><td colspan="4" class="p-3">Belum ada mata pelajaran.</td></tr>';
+            showAdminNotice('Data guru dan mata pelajaran berhasil dimuat.');
+          }catch(err){showAdminNotice('Gagal memuat data: '+err.message,false);}}
+        async function handleAdminLogout(){try{if(supabaseClient)await supabaseClient.auth.signOut();}catch(_){}adminAuthSession=null;document.getElementById('dashboard-admin').classList.add('hidden');document.getElementById('login-modal').classList.remove('hidden');switchLoginTab('admin');}
+
+        async function handleTeacherLogin(event) {
             event.preventDefault();
-            if (document.getElementById('teacher-password-input').value === "guru2026") {
+            const passwordInput = document.getElementById('teacher-password-input');
+            const errorBox = document.getElementById('teacher-login-error');
+            const submitButton = document.querySelector('#teacher-login-form button[type="submit"]');
+            errorBox.classList.add('hidden');
+            if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Memeriksa...'; }
+            try {
+                const result = await callCbtAdmin('login', { password: passwordInput.value });
+                teacherSessionToken = result.token;
                 isTeacher = true;
+                passwordInput.value = '';
                 document.getElementById('login-modal').classList.add('hidden');
                 // Sembunyikan seluruh area soal siswa saat mode guru aktif.
                 document.getElementById('kuis')?.classList.add('hidden');
@@ -1473,13 +1533,18 @@ Kunci: B</pre>
                 window.teacherDashboardInterval = setInterval(() => {
                     if (isTeacher) loadTeacherDashboard();
                 }, 20000);
-            } else {
-                document.getElementById('teacher-login-error').classList.remove('hidden');
+            } catch (err) {
+                console.error('Login guru gagal:', err);
+                errorBox.textContent = '❌ ' + (err.message || 'Login gagal. Periksa koneksi dan konfigurasi Edge Function.');
+                errorBox.classList.remove('hidden');
+            } finally {
+                if (submitButton) { submitButton.disabled = false; submitButton.innerHTML = 'Masuk sebagai Guru &rarr;'; }
             }
         }
 
         function handleTeacherLogout() {
             isTeacher = false;
+            teacherSessionToken = null;
             if (window.teacherDashboardInterval) { clearInterval(window.teacherDashboardInterval); window.teacherDashboardInterval = null; }
             document.getElementById('teacher-badge').classList.add('hidden');
             document.getElementById('dashboard-guru').classList.add('hidden');
