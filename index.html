@@ -2151,5 +2151,16 @@ async function studentSubmit(timeout=false){if(studentSubmitting)return;if(!time
 async function studentLogout(){clearInterval(studentTimerInterval);studentSessionToken=null;studentProfile=null;studentCurrentExam=null;studentAttempt=null;studentQuestions=[];studentAnswers={};studentQuestionIndex=0;studentShow('student-login-card');document.getElementById('student-login-form').reset();document.getElementById('student-login-message').textContent=''}
 </script>
 
+<script>
+// Perbaikan Tahap 4: tutup/hilangkan modal login lama PKWU yang menutupi portal siswa multi-mapel.
+document.addEventListener('DOMContentLoaded', () => {
+  const legacyLogin = document.getElementById('login-modal');
+  if (legacyLogin) legacyLogin.remove();
+  // File paket sebelumnya memuat portal siswa berulang; pertahankan satu portal saja.
+  const portals = document.querySelectorAll('#student-portal');
+  portals.forEach((portal, index) => { if (index > 0) portal.remove(); });
+});
+</script>
+
 </body>
 </html>
