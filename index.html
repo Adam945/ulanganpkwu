@@ -14,6 +14,25 @@ const supabaseClient = (SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.inc
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
+// Sesi guru hanya disimpan di memori halaman, tidak ditanam sebagai password di HTML.
+let teacherSessionToken = null;
+async function callCbtAdmin(action, payload = {}, token = null) {
+    const headers = {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/cbt-admin`, {
+        method: "POST", headers, body: JSON.stringify({ action, ...payload })
+    });
+    let data = {};
+    try { data = await response.json(); } catch (_) {}
+    if (!response.ok || data.ok !== true) {
+        throw new Error(data.error || `Permintaan ke server gagal (HTTP ${response.status}).`);
+    }
+    return data;
+}
+
 async function saveQuizResultOnline(result) {
     if (!supabaseClient) return { ok: false, reason: "not_configured" };
 
@@ -882,36 +901,18 @@ Kunci: B</pre>
         }
 
         async function replaceQuestionBankInSupabase(questions) {
-            if (!supabaseClient) throw new Error('Koneksi Supabase belum dikonfigurasi.');
+            if (!teacherSessionToken) throw new Error('Sesi guru tidak tersedia. Silakan login guru kembali.');
             if (!questions.length) throw new Error('Dokumen tidak berisi soal valid.');
             const payload = questions.map(q => ({
                 pertanyaan: q.question,
                 pilihan: q.options,
                 kunci_jawaban: ['A','B','C','D','E'][q.correct],
-                aktif: false,
                 signature: questionSignature(q)
             }));
-            // Tahap 1: simpan seluruh soal baru dalam keadaan nonaktif terlebih dahulu.
-            const { error: upsertError } = await supabaseClient
-                .from('pkwu_bank_soal')
-                .upsert(payload, { onConflict: 'signature', ignoreDuplicates: false });
-            if (upsertError) throw upsertError;
-
-            // Tahap 2: nonaktifkan bank lama, lalu aktifkan hanya soal dari dokumen ini.
-            const { error: deactivateError } = await supabaseClient
-                .from('pkwu_bank_soal').update({ aktif: false }).eq('aktif', true);
-            if (deactivateError) throw deactivateError;
-            const signatures = payload.map(row => row.signature);
-            const { error: activateError } = await supabaseClient
-                .from('pkwu_bank_soal').update({ aktif: true }).in('signature', signatures);
-            if (activateError) throw activateError;
-
-            // Verifikasi bahwa bank aktif di cloud sama dengan jumlah soal yang diimpor.
-            const { data, error: verifyError } = await supabaseClient
-                .from('pkwu_bank_soal').select('id').eq('aktif', true);
-            if (verifyError) throw verifyError;
-            if (!data || data.length !== questions.length) {
-                throw new Error(`Verifikasi bank soal gagal. Diharapkan ${questions.length} soal aktif, ditemukan ${data?.length ?? 0}.`);
+            // Perubahan bank soal dilakukan di server menggunakan sesi guru bertanda tangan.
+            const result = await callCbtAdmin('replace_bank', { questions: payload }, teacherSessionToken);
+            if (result.count !== questions.length) {
+                throw new Error(`Verifikasi bank soal gagal. Diharapkan ${questions.length} soal, server melaporkan ${result.count ?? 0}.`);
             }
         }
 
@@ -1458,10 +1459,18 @@ Kunci: B</pre>
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
-        function handleTeacherLogin(event) {
+        async function handleTeacherLogin(event) {
             event.preventDefault();
-            if (document.getElementById('teacher-password-input').value === "guru2026") {
+            const passwordInput = document.getElementById('teacher-password-input');
+            const errorBox = document.getElementById('teacher-login-error');
+            const submitButton = document.querySelector('#teacher-login-form button[type="submit"]');
+            errorBox.classList.add('hidden');
+            if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Memeriksa...'; }
+            try {
+                const result = await callCbtAdmin('login', { password: passwordInput.value });
+                teacherSessionToken = result.token;
                 isTeacher = true;
+                passwordInput.value = '';
                 document.getElementById('login-modal').classList.add('hidden');
                 // Sembunyikan seluruh area soal siswa saat mode guru aktif.
                 document.getElementById('kuis')?.classList.add('hidden');
@@ -1473,13 +1482,18 @@ Kunci: B</pre>
                 window.teacherDashboardInterval = setInterval(() => {
                     if (isTeacher) loadTeacherDashboard();
                 }, 20000);
-            } else {
-                document.getElementById('teacher-login-error').classList.remove('hidden');
+            } catch (err) {
+                console.error('Login guru gagal:', err);
+                errorBox.textContent = '❌ ' + (err.message || 'Login gagal. Periksa koneksi dan konfigurasi Edge Function.');
+                errorBox.classList.remove('hidden');
+            } finally {
+                if (submitButton) { submitButton.disabled = false; submitButton.innerHTML = 'Masuk sebagai Guru &rarr;'; }
             }
         }
 
         function handleTeacherLogout() {
             isTeacher = false;
+            teacherSessionToken = null;
             if (window.teacherDashboardInterval) { clearInterval(window.teacherDashboardInterval); window.teacherDashboardInterval = null; }
             document.getElementById('teacher-badge').classList.add('hidden');
             document.getElementById('dashboard-guru').classList.add('hidden');
